@@ -1,89 +1,95 @@
 import streamlit as st
 import sqlite3
 import hashlib
-from datetime import date
+from datetime import date, datetime, timedelta
 import random
 import time
 
-# --- 1. DATABASE SETUP ---
-conn = sqlite3.connect('english_guru_v40.db', check_same_thread=False)
+# --- 1. DATABASE & ARCHITECTURE ---
+conn = sqlite3.connect('english_guru_v42.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users 
-             (email TEXT PRIMARY KEY, username TEXT, password TEXT, xp INTEGER)''')
+             (email TEXT PRIMARY KEY, username TEXT, password TEXT, xp INTEGER, level TEXT, daily_goal INTEGER)''')
+c.execute('''CREATE TABLE IF NOT EXISTS progress 
+             (email TEXT, date TEXT, xp INTEGER, category TEXT)''')
 conn.commit()
 
-# --- 2. SESSION STATE (Gaming Core) ---
+# --- 2. SESSION STATE ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if 'enemy_hp' not in st.session_state: st.session_state.enemy_hp = 100
-if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
 
-# --- 3. ULTRA GAMER UI (CSS) ---
-st.set_page_config(page_title="ENGLISH GURU", page_icon="⚡", layout="wide")
-
+# --- 3. HIGH-ENERGY CYBER CSS ---
+st.set_page_config(page_title="English Guru Pro", page_icon="🎓", layout="wide")
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Orbitron:wght@400;700&family=Rajdhani:wght@600&display=swap');
     
     .stApp { 
-        background: #0d1117;
-        background-image: radial-gradient(#1f2937 1px, transparent 1px);
-        background-size: 20px 20px;
-        color: #e6edf3;
-        font-family: 'Rajdhani', sans-serif;
+        background: #050505;
+        background-image: radial-gradient(circle at 20% 30%, #1a1a2e 0%, #050505 100%);
+        color: #00f2ff; font-family: 'Rajdhani', sans-serif;
     }
-
-    /* English Guru Branding */
+    
+    /* Neon Branding */
     .brand-title {
         font-family: 'Bungee', cursive;
-        color: #00f2ff;
-        font-size: 4rem;
+        color: #ff00ff;
+        font-size: 4.5rem;
         text-align: center;
-        text-shadow: 0 0 15px #00f2ff, 0 0 30px #7000ff;
-        margin-top: -50px;
+        text-shadow: 0 0 15px #ff00ff, 0 0 30px #00f2ff;
+        margin-top: -40px;
     }
 
-    .glass-card {
-        background: rgba(22, 27, 34, 0.8);
-        border: 2px solid #30363d;
-        border-radius: 15px; padding: 25px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-        transition: 0.4s;
+    .cyber-card {
+        background: rgba(10, 10, 20, 0.9);
+        border: 2px solid #00f2ff;
+        border-radius: 20px; padding: 30px;
+        box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+        margin-bottom: 25px;
+        transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    .glass-card:hover { border-color: #ff00ff; box-shadow: 0 0 20px rgba(255, 0, 255, 0.3); }
+    .cyber-card:hover { 
+        border-color: #ff00ff; 
+        transform: translateY(-8px);
+        box-shadow: 0 0 40px rgba(255, 0, 255, 0.4);
+    }
 
-    /* Neon Buttons */
+    /* Animated Gaming Buttons */
     .stButton>button {
-        background: linear-gradient(90deg, #00f2ff, #7000ff) !important;
-        color: white !important; font-family: 'Bungee' !important;
-        border: none !important; border-radius: 8px !important;
-        height: 50px; width: 100%; transition: 0.3s;
+        background: linear-gradient(45deg, #00f2ff, #7000ff) !important;
+        color: white !important; font-family: 'Orbitron', sans-serif !important;
+        border: none !important; border-radius: 10px !important;
+        padding: 15px 30px !important; font-weight: bold !important;
+        width: 100%; letter-spacing: 2px;
     }
-    .stButton>button:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0, 242, 255, 0.4); }
+    .stButton>button:hover {
+        box-shadow: 0 0 50px #00f2ff !important;
+        transform: scale(1.02);
+    }
 
-    /* HP Mechanics */
-    .hp-bg { height: 30px; background: #21262d; border-radius: 5px; border: 1px solid #30363d; margin: 10px 0; }
-    .hp-player { height: 100%; background: #238636; box-shadow: 0 0 10px #238636; transition: 0.6s; }
-    .hp-boss { height: 100%; background: #da3633; box-shadow: 0 0 10px #da3633; transition: 0.6s; }
+    /* Custom Progress Bar */
+    .stProgress > div > div > div > div {
+        background-image: linear-gradient(to right, #ff00ff, #00f2ff) !important;
+    }
+
+    h1, h2, h3 { font-family: 'Orbitron', sans-serif; text-transform: uppercase; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. DATA ---
-COMBAT_DB = [
-    {"q": "Meaning of 'EUPHORIA'?", "o": ["Sadness", "Extreme Happiness", "Anger", "Confusion"], "a": "Extreme Happiness"},
-    {"q": "Correct sentence?", "o": ["He don't like it", "He doesn't likes it", "He doesn't like it", "He no like it"], "a": "He doesn't like it"},
-    {"q": "Synonym of 'OBSOLETE'?", "o": ["Modern", "Outdated", "Expensive", "Fast"], "a": "Outdated"}
-]
+# --- 4. CORE FUNCTIONS ---
+def add_xp(amount, cat):
+    c.execute("INSERT INTO progress VALUES (?, ?, ?, ?)", (st.session_state.email, str(date.today()), amount, cat))
+    conn.commit()
 
-# --- 5. APP FLOW ---
+# --- 5. APP LOGIC ---
 if not st.session_state.logged_in:
-    st.markdown("<p class='brand-title'>ENGLISH GURU</p>", unsafe_allow_html=True)
-    _, col, _ = st.columns([1, 1.2, 1])
-    with col:
-        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        tab = st.tabs(["🚀 ACCESS", "🛡️ NEW HERO"])
+    st.markdown("<h1 class='brand-title'>ENGLISH GURU</h1>", unsafe_allow_html=True)
+    _, col2, _ = st.columns([1,1.5,1])
+    with col2:
+        st.markdown("<div class='cyber-card'>", unsafe_allow_html=True)
+        tab = st.tabs(["⚡ ACCESS PORTAL", "🛠️ NEW RECRUIT"])
         with tab[0]:
             e = st.text_input("Warrior Email")
-            p = st.text_input("Key", type='password')
+            p = st.text_input("Secret Key", type='password')
             if st.button("INITIALIZE"):
                 h = hashlib.sha256(p.encode()).hexdigest()
                 c.execute('SELECT username FROM users WHERE email=? AND password=?', (e, h))
@@ -91,68 +97,63 @@ if not st.session_state.logged_in:
                 if res:
                     st.session_state.logged_in, st.session_state.user, st.session_state.email = True, res[0], e
                     st.rerun()
-                else: st.error("Access Denied!")
         with tab[1]:
-            ne, nu, np = st.text_input("Email"), st.text_input("Codename"), st.text_input("Passkey", type='password')
+            ne, nu, np = st.text_input("New Email"), st.text_input("Codename"), st.text_input("Passkey", type='password')
             if st.button("CREATE PROFILE"):
                 h = hashlib.sha256(np.encode()).hexdigest()
-                c.execute('INSERT INTO users VALUES (?,?,?,0)', (ne, nu, h))
+                c.execute('INSERT INTO users VALUES (?,?,?,0,"Scout",100)', (ne, nu, h))
                 conn.commit(); st.balloons(); st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
 else:
-    # Fetch Data
-    c.execute("SELECT xp FROM users WHERE email=?", (st.session_state.email,))
-    user_data = c.fetchone()
-    current_xp = user_data[0] if user_data else 0
+    # Fetch User XP
+    c.execute("SELECT SUM(xp) FROM progress WHERE email=?", (st.session_state.email,))
+    xp_data = c.fetchone()
+    current_xp = xp_data[0] if xp_data and xp_data[0] else 0
 
-    # Sidebar
     with st.sidebar:
-        st.markdown(f"<h1 style='color:#00f2ff; font-family:Bungee;'>{st.session_state.user}</h1>", unsafe_allow_html=True)
-        st.write(f"📊 **LEVEL:** {1 + current_xp//100}")
-        st.write(f"✨ **TOTAL XP:** {current_xp}")
-        menu = st.radio("MISSION SELECT", ["🏠 DASHBOARD", "⚔️ COMBAT ARENA"])
+        st.markdown(f"<h1 style='color:#ff00ff; font-family:Bungee;'>🛡️ {st.session_state.user}</h1>", unsafe_allow_html=True)
+        st.markdown(f"**XP:** `{current_xp}` | **LVL:** `{1 + current_xp//100}`")
+        page = st.selectbox("MISSION SELECT", ["📊 Dashboard", "📚 Vocab Vault", "✍️ Grammar Lab", "🗣️ Speaking Hub"])
         if st.button("ABORT MISSION"): st.session_state.logged_in = False; st.rerun()
 
-    if menu == "🏠 DASHBOARD":
-        st.markdown("<p class='brand-title'>ENGLISH GURU</p>", unsafe_allow_html=True)
-        cols = st.columns(3)
-        cols[0].markdown(f"<div class='glass-card'><h3>🏆 XP</h3><h2>{current_xp}</h2></div>", unsafe_allow_html=True)
-        cols[1].markdown(f"<div class='glass-card'><h3>🎖️ RANK</h3><h2>{'ELITE' if current_xp > 500 else 'SCOUT'}</h2></div>", unsafe_allow_html=True)
-        cols[2].markdown(f"<div class='glass-card'><h3>🔥 STREAK</h3><h2>5 DAYS</h2></div>", unsafe_allow_html=True)
+    # --- DASHBOARD ---
+    if page == "📊 Dashboard":
+        st.markdown("<h1 class='brand-title'>ENGLISH GURU</h1>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        c1.markdown(f"<div class='cyber-card'><h3>🏆 XP</h3><h2>{current_xp}</h2></div>", unsafe_allow_html=True)
+        c2.markdown(f"<div class='cyber-card'><h3>🎖️ RANK</h3><h2>{'ELITE' if current_xp > 500 else 'SCOUT'}</h2></div>", unsafe_allow_html=True)
+        c3.markdown(f"<div class='cyber-card'><h3>🔥 STREAK</h3><h2>5 DAYS</h2></div>", unsafe_allow_html=True)
         
-        st.markdown("<br><div class='glass-card'><h3>Level Progression</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='cyber-card'><h3>Evolution Progress</h3>", unsafe_allow_html=True)
         st.progress(min((current_xp % 100)/100, 1.0))
         st.markdown("</div>", unsafe_allow_html=True)
 
-    elif menu == "⚔️ COMBAT ARENA":
-        st.markdown("<h2 style='text-align:center; font-family:Bungee;'>BATTLE ZONE</h2>", unsafe_allow_html=True)
-        
-        ca, cb = st.columns(2)
-        with ca:
-            st.write(f"🛡️ HERO HP: {st.session_state.player_hp}%")
-            st.markdown(f"<div class='hp-bg'><div class='hp-player' style='width:{st.session_state.player_hp}%;'></div></div>", unsafe_allow_html=True)
-        with cb:
-            st.write(f"👾 MONSTER HP: {st.session_state.enemy_hp}%")
-            st.markdown(f"<div class='hp-bg'><div class='hp-boss' style='width:{st.session_state.enemy_hp}%;'></div></div>", unsafe_allow_html=True)
+    # --- VOCAB VAULT ---
+    elif page == "📚 Vocab Vault":
+        st.markdown("<h1>VOCABULARY VAULT</h1>", unsafe_allow_html=True)
+        word = {"w": "Resilient", "m": "Able to withstand or recover quickly from difficult conditions."}
+        st.markdown(f"<div class='cyber-card'><h1 style='text-align:center; font-size:4rem; color:#00f2ff;'>{word['w']}</h1></div>", unsafe_allow_html=True)
+        if st.button("⚡ SCAN INTEL"):
+            st.markdown(f"<div class='cyber-card'><h3>Meaning:</h3><p style='font-size:1.4rem;'>{word['m']}</p></div>", unsafe_allow_html=True)
+            add_xp(10, "Vocab"); st.toast("XP GAINED!", icon="🔥")
 
-        if st.session_state.enemy_hp <= 0:
-            st.balloons(); st.success("ENEMY DESTROYED! +50 XP")
-            c.execute("UPDATE users SET xp = xp + 50 WHERE email=?", (st.session_state.email,))
-            conn.commit(); st.session_state.enemy_hp, st.session_state.player_hp = 100, 100
-            st.button("Search Next Enemy")
-        elif st.session_state.player_hp <= 0:
-            st.error("Wasted! Respawning...")
-            if st.button("RESPAWN"): st.session_state.enemy_hp, st.session_state.player_hp = 100, 100; st.rerun()
-        else:
-            q = random.choice(COMBAT_DB)
-            st.markdown(f"<div class='glass-card'><h3>MISSION: {q['q']}</h3></div>", unsafe_allow_html=True)
-            ans = st.radio("Choose Move:", q['o'], horizontal=True)
-            if st.button("💥 STRIKE"):
-                if ans == q['a']:
-                    st.session_state.enemy_hp -= 34
-                    st.toast("CRITICAL HIT!", icon="🔥")
-                else:
-                    st.session_state.player_hp -= 25
-                    st.toast("SYSTEM ERROR! -25 HP", icon="💀")
-                st.rerun()
+    # --- GRAMMAR LAB ---
+    elif page == "✍️ Grammar Lab":
+        st.markdown("<h1>GRAMMAR CORE</h1>", unsafe_allow_html=True)
+        st.markdown("<div class='cyber-card'><h3>Mission: Identify Correct Verb</h3><p>She ____ (finish/finishes) her work on time.</p></div>", unsafe_allow_html=True)
+        ans = st.text_input("Enter Answer:")
+        if st.button("💥 EXECUTE STRIKE"):
+            if ans.lower().strip() == "finishes":
+                st.balloons(); st.success("CRITICAL HIT! +20 XP"); add_xp(20, "Grammar")
+            else: st.error("MISSED! Try again.")
+
+    # --- SPEAKING HUB ---
+    elif page == "🗣️ Speaking Hub":
+        st.markdown("<h1>VOCAL INTERFACE</h1>", unsafe_allow_html=True)
+        st.markdown("<div class='cyber-card'><h4>Mission: Pronunciation Check</h4><p>Say: 'Technological advancements are inevitable.'</p></div>", unsafe_allow_html=True)
+        if st.button("🎙️ ACTIVATE SENSORS"):
+            with st.spinner("Analyzing Vocal Patterns..."):
+                time.sleep(2)
+                st.info("Accuracy: 94%. You are a natural, Warrior.")
+                add_xp(30, "Speaking")
