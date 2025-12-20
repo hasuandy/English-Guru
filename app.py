@@ -6,169 +6,123 @@ import random
 import time
 
 # --- 1. DATABASE SETUP ---
-conn = sqlite3.connect('vocal_warrior_v36.db', check_same_thread=False)
+conn = sqlite3.connect('vocal_warrior_v37.db', check_same_thread=False)
 c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT, password TEXT, xp INTEGER, streak INTEGER)''')
+c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT, password TEXT, xp INTEGER)''')
 c.execute('''CREATE TABLE IF NOT EXISTS progress (email TEXT, date TEXT, xp INTEGER)''')
 conn.commit()
 
-# --- 2. SESSION STATE (Gaming Core) ---
+# --- 2. SESSION STATE ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'enemy_hp' not in st.session_state: st.session_state.enemy_hp = 100
 if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
 
-# --- 3. ULTRA DYNAMIC CSS ---
-st.set_page_config(page_title="Vocal Warrior 36", page_icon="⚔️", layout="wide")
+# --- 3. CSS (Neon Style) ---
+st.set_page_config(page_title="Vocal Warrior Pro", page_icon="⚔️", layout="wide")
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=JetBrains+Mono:wght@700&display=swap');
-    
-    .stApp {
-        background: #050505;
-        background-image: radial-gradient(#1b2735 0%, #090a0f 100%);
-        color: #00f2ff;
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* Neon Pulse Animation */
-    @keyframes pulse {
-        0% { box-shadow: 0 0 5px #ff00ff; }
-        50% { box-shadow: 0 0 25px #ff00ff; }
-        100% { box-shadow: 0 0 5px #ff00ff; }
-    }
-
+    .stApp { background: #0a0a0a; color: #00f2ff; font-family: 'Courier New', monospace; }
     .game-card {
-        background: rgba(0, 0, 0, 0.6);
-        border: 2px solid #00f2ff;
-        border-radius: 15px;
-        padding: 25px;
-        text-align: center;
-        transition: 0.3s;
+        background: rgba(20, 20, 20, 0.8);
+        border: 2px solid #ff00ff;
+        border-radius: 15px; padding: 20px;
+        text-align: center; box-shadow: 0 0 20px #ff00ff33;
     }
-    .game-card:hover {
-        border-color: #ff00ff;
-        transform: translateY(-5px);
-    }
-
     .stButton>button {
-        background: linear-gradient(45deg, #ff00ff, #00f2ff) !important;
-        color: white !important;
-        border: none !important;
-        font-family: 'Bungee', cursive !important;
-        font-size: 1.2rem !important;
-        padding: 10px 20px !important;
-        animation: pulse 2s infinite;
+        background: linear-gradient(45deg, #00f2ff, #7000ff) !important;
+        color: white !important; font-weight: bold !important;
+        border-radius: 10px; width: 100%; height: 50px;
     }
-
-    /* HP Bar Styling */
-    .hp-container {
-        width: 100%;
-        background-color: #333;
-        border-radius: 20px;
-        margin: 10px 0;
-    }
-    .hp-bar-fill {
-        height: 20px;
-        border-radius: 20px;
-        transition: width 0.5s ease-in-out;
-    }
+    .hp-bar { height: 20px; border-radius: 10px; background: #333; overflow: hidden; }
+    .hp-fill { height: 100%; transition: 0.5s; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. GAME CONTENT ---
-VOCAB_BATTLE = [
-    {"q": "Meaning of 'Vivid'?", "o": ["Dull", "Bright", "Small", "Slow"], "a": "Bright"},
-    {"q": "Antonym of 'Gigantic'?", "o": ["Huge", "Tiny", "Strong", "Fast"], "a": "Tiny"},
-    {"q": "Correct spelling?", "o": ["Comittee", "Committee", "Comite", "Commitee"], "a": "Committee"},
-    {"q": "She ____ to the market every day.", "o": ["Go", "Goes", "Going", "Gone"], "a": "Goes"}
+# --- 4. QUESTIONS ---
+QUESTIONS = [
+    {"q": "Synonym of 'ABANDON'?", "o": ["Leave", "Keep", "Hold", "Adopt"], "a": "Leave"},
+    {"q": "Antonym of 'FRAGILE'?", "o": ["Weak", "Strong", "Delicate", "Thin"], "a": "Strong"},
+    {"q": "Correct spelling?", "o": ["Occurrence", "Occurence", "Ocurrence", "Occurrance"], "a": "Occurrence"}
 ]
 
-# --- 5. LOGIC ---
+# --- 5. APP LOGIC ---
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align:center; font-family:Bungee; font-size:4rem; color:#ff00ff;'>VOCAL WARRIOR</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#ff00ff;'>⚔️ VOCAL WARRIOR ⚔️</h1>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1.2, 1])
     with c2:
-        st.markdown("<div class='game-card'>", unsafe_allow_html=True)
-        mode = st.tabs(["🔑 LOGIN", "🛡️ SIGNUP"])
+        mode = st.tabs(["LOGIN", "SIGNUP"])
         with mode[0]:
-            e = st.text_input("EMAIL")
-            p = st.text_input("PASSWORD", type='password')
-            if st.button("START MISSION"):
+            e = st.text_input("Email")
+            p = st.text_input("Password", type='password')
+            if st.button("ENTER ARENA"):
                 h = hashlib.sha256(p.encode()).hexdigest()
-                c.execute('SELECT username, xp FROM users WHERE email=? AND password=?', (e, h))
+                c.execute('SELECT username FROM users WHERE email=? AND password=?', (e, h))
                 res = c.fetchone()
                 if res:
                     st.session_state.logged_in, st.session_state.user, st.session_state.email = True, res[0], e
                     st.rerun()
+                else: st.error("Wrong Credentials")
         with mode[1]:
-            ne, nu, np = st.text_input("NEW EMAIL"), st.text_input("CODENAME"), st.text_input("NEW PASSWORD", type='password')
-            if st.button("RECRUIT ME"):
+            ne, nu, np = st.text_input("New Email"), st.text_input("Warrior Name"), st.text_input("New Password", type='password')
+            if st.button("RECRUIT"):
                 h = hashlib.sha256(np.encode()).hexdigest()
-                c.execute('INSERT INTO users VALUES (?,?,?,0,0)', (ne, nu, h))
-                conn.commit(); st.success("Welcome, Warrior!"); st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+                c.execute('INSERT INTO users VALUES (?,?,?,0)', (ne, nu, h))
+                conn.commit(); st.success("Warrior Created!"); st.rerun()
 
 else:
-    # --- SIDEBAR: RANK SYSTEM ---
-    with st.sidebar:
-        c.execute("SELECT xp FROM users WHERE email=?", (st.session_state.email,))
-        current_xp = c.fetchone()[0] or 0
-        rank = "SOLDIER"
-        if current_xp > 500: rank = "COMMANDER"
-        if current_xp > 1000: rank = "WARLORD"
-        
-        st.markdown(f"## 🎖️ {st.session_state.user}\n**Rank:** {rank}")
-        st.write(f"**XP:** {current_xp}")
-        menu = st.radio("SELECT ARENA", ["🏠 Base", "⚔️ Combat Zone", "🏆 Leaderboard"])
-        if st.button("EXIT GAME"): st.session_state.logged_in = False; st.rerun()
+    # --- FETCH USER DATA (Error-proof) ---
+    c.execute("SELECT xp FROM users WHERE email=?", (st.session_state.email,))
+    row = c.fetchone()
+    current_xp = row[0] if row else 0 # Yahan humne error fix kar diya hai!
 
-    # --- COMBAT ZONE (The "Majedar" Part) ---
-    if menu == "⚔️ Combat Zone":
-        st.markdown("<h1 style='text-align:center; font-family:Bungee;'>ARENA BATTLE</h1>", unsafe_allow_html=True)
+    # --- WEAPON & RANK SYSTEM ---
+    weapon = "👊 Bare Fists"
+    if current_xp >= 100: weapon = "🗡️ Iron Dagger"
+    if current_xp >= 300: weapon = "⚔️ Plasma Sword"
+    if current_xp >= 600: weapon = "🔥 Dragon Slayer"
+
+    with st.sidebar:
+        st.markdown(f"### 🛡️ {st.session_state.user}")
+        st.markdown(f"**XP:** `{current_xp}`")
+        st.markdown(f"**Weapon:** `{weapon}`")
+        menu = st.radio("MENU", ["Combat Zone", "Leaderboard"])
+        if st.button("Logout"): st.session_state.logged_in = False; st.rerun()
+
+    if menu == "Combat Zone":
+        st.markdown(f"<h2 style='text-align:center;'>BATTLE FIELD</h2>", unsafe_allow_html=True)
         
+        # UI: HP BARS
         col1, col2 = st.columns(2)
         with col1:
-            st.write(f"🛡️ {st.session_state.user} (HP: {st.session_state.player_hp}%)")
-            st.markdown(f'<div class="hp-container"><div class="hp-bar-fill" style="width:{st.session_state.player_hp}%; background:lime;"></div></div>', unsafe_allow_html=True)
+            st.write(f"YOU ({st.session_state.player_hp}%)")
+            st.markdown(f'<div class="hp-bar"><div class="hp-fill" style="width:{st.session_state.player_hp}%; background:lime;"></div></div>', unsafe_allow_html=True)
         with col2:
-            st.write(f"👹 MONSTER (HP: {st.session_state.enemy_hp}%)")
-            st.markdown(f'<div class="hp-container"><div class="hp-bar-fill" style="width:{st.session_state.enemy_hp}%; background:red;"></div></div>', unsafe_allow_html=True)
+            st.write(f"ENEMY ({st.session_state.enemy_hp}%)")
+            st.markdown(f'<div class="hp-bar"><div class="hp-fill" style="width:{st.session_state.enemy_hp}%; background:red;"></div></div>', unsafe_allow_html=True)
 
         if st.session_state.enemy_hp <= 0:
-            st.balloons()
-            st.success("VICTORY! YOU GAINED 50 XP")
+            st.balloons(); st.success("VICTORY! +50 XP")
             c.execute("UPDATE users SET xp = xp + 50 WHERE email=?", (st.session_state.email,))
             conn.commit(); st.session_state.enemy_hp = 100; st.session_state.player_hp = 100
-            if st.button("NEXT ENEMY"): st.rerun()
+            st.button("Search Next Enemy")
         elif st.session_state.player_hp <= 0:
-            st.error("DEFEATED! Game Over.")
-            if st.button("RESPAWN"): st.session_state.player_hp = 100; st.session_state.enemy_hp = 100; st.rerun()
+            st.error("YOU DIED!"); 
+            if st.button("Respawn"): st.session_state.player_hp = 100; st.session_state.enemy_hp = 100; st.rerun()
         else:
-            q = random.choice(VOCAB_BATTLE)
-            st.markdown(f"<div class='game-card'><h2>{q['q']}</h2></div>", unsafe_allow_html=True)
-            ans = st.radio("Choose your weapon:", q['o'], horizontal=True)
-            
-            if st.button("💥 STRIKE"):
+            q = random.choice(QUESTIONS)
+            st.markdown(f"<div class='game-card'><h3>{q['q']}</h3></div>", unsafe_allow_html=True)
+            ans = st.radio("Choose Move:", q['o'], horizontal=True)
+            if st.button(f"USE {weapon.split(' ')[1].upper()}"):
                 if ans == q['a']:
-                    st.session_state.enemy_hp -= 25
-                    st.toast("Clean Hit! -25 HP to Enemy", icon='🔥')
+                    st.session_state.enemy_hp -= 34
+                    st.toast("CRITICAL HIT!", icon="🔥")
                 else:
-                    st.session_state.player_hp -= 20
-                    st.toast("Countered! -20 HP to You", icon='💀')
+                    st.session_state.player_hp -= 25
+                    st.toast("YOU GOT HIT!", icon="💀")
                 st.rerun()
-
-    elif menu == "🏠 Base":
-        st.title("Welcome Back, Warrior!")
-        st.markdown("""
-        ### Daily Missions:
-        1. Solve 5 Vocab questions (0/5)
-        2. Defeat 1 Boss (0/1)
-        3. Maintain 3-day streak
-        """)
-        st.info("Train in the Combat Zone to increase your rank!")
-
-    elif menu == "🏆 Leaderboard":
+                
+    elif menu == "Leaderboard":
         st.title("Hall of Fame")
-        data = c.execute("SELECT username, xp FROM users ORDER BY xp DESC LIMIT 5").fetchall()
-        for i, row in enumerate(data):
-            st.markdown(f"<div class='game-card' style='margin:10px;'>#{i+1} {row[0]} — {row[1]} XP</div>", unsafe_allow_html=True)
+        data = c.execute("SELECT username, xp FROM users ORDER BY xp DESC LIMIT 10").fetchall()
+        for i, r in enumerate(data):
+            st.markdown(f"<div class='game-card' style='margin-bottom:10px;'>#{i+1} {r[0]} - {r[1]} XP</div>", unsafe_allow_html=True)
