@@ -36,15 +36,12 @@ st.set_page_config(page_title="English Guru Pro", page_icon="⚡", layout="wide"
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
-
     .stApp {{ 
         background: radial-gradient(circle at center, #1a1a2e 0%, #0d0d14 100%);
         background-attachment: fixed;
         font-family: 'Rajdhani', sans-serif;
         color: #e0e0e0;
     }}
-    
-    /* Elegant Glass Cards */
     .metric-card {{
         background: rgba(255, 255, 255, 0.03);
         padding: 25px;
@@ -54,36 +51,15 @@ st.markdown(f"""
         text-align: center;
         transition: 0.3s;
     }}
-    .metric-card:hover {{
-        background: rgba(255, 255, 255, 0.07);
-        box-shadow: 0 0 20px {st.session_state.theme}44;
-    }}
-
-    /* HP Bars */
     .hp-bar {{ height: 15px; border-radius: 10px; background: #222; overflow: hidden; margin-bottom: 5px; }}
     .hp-fill {{ height: 100%; transition: width 0.5s ease; }}
-
-    /* Styled Buttons */
     .stButton>button {{
         background: transparent;
         color: {st.session_state.theme} !important;
         border: 2px solid {st.session_state.theme} !important;
-        border-radius: 8px;
-        font-weight: bold;
-        padding: 10px 20px;
-        width: 100%;
-        transition: 0.3s;
+        border-radius: 8px; font-weight: bold; padding: 10px 20px; width: 100%;
     }}
-    .stButton>button:hover {{
-        background: {st.session_state.theme} !important;
-        color: #000 !important;
-        box-shadow: 0 0 15px {st.session_state.theme};
-    }}
-
-    h1, h2, h3 {{ 
-        color: #fff; 
-        text-shadow: 0 0 10px {st.session_state.theme}66;
-    }}
+    .stButton>button:hover {{ background: {st.session_state.theme} !important; color: #000 !important; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -91,7 +67,7 @@ st.markdown(f"""
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align:center; font-size: 3.5rem;'>⚡ ENGLISH GURU ARENA</h1>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1,1.5,1])
-    with col2 := c2:
+    with c2:  # <-- FIXED LINE HERE
         t1, t2 = st.tabs(["🔑 ACCESS PORTAL", "📝 NEW REGISTRATION"])
         with t1:
             e = st.text_input("Email")
@@ -129,16 +105,28 @@ else:
         st.markdown(f"<h1>Welcome, Warrior {st.session_state.user}</h1>", unsafe_allow_html=True)
         c.execute("SELECT SUM(xp) FROM progress WHERE email = ?", (st.session_state.email,))
         txp = c.fetchone()[0] or 0
-        
         col1, col2, col3 = st.columns(3)
         with col1: st.markdown(f"<div class='metric-card'>🏆 XP<h3>{txp}</h3></div>", unsafe_allow_html=True)
         with col2: st.markdown(f"<div class='metric-card'>🎖️ RANK<h3>{'ELITE' if txp > 500 else 'NOVICE'}</h3></div>", unsafe_allow_html=True)
         with col3: st.markdown(f"<div class='metric-card'>🔥 DAYS<h3>1</h3></div>", unsafe_allow_html=True)
-
         st.write("### 📈 Recent Activity")
         dates = [(date.today() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(6, -1, -1)]
         xp_vals = [c.execute("SELECT SUM(xp) FROM progress WHERE email=? AND date=?", (st.session_state.email, d)).fetchone()[0] or 0 for d in dates]
         st.area_chart(pd.DataFrame({"XP": xp_vals}, index=[d[5:] for d in dates]), color=st.session_state.theme)
+
+    elif page == "🎯 MCQ Training":
+        st.title("🎯 MCQ TRAINING")
+        q = random.choice(MCQ_DATA)
+        st.markdown(f"<div class='metric-card'><h3>{q['q']}</h3></div>", unsafe_allow_html=True)
+        cols = st.columns(2)
+        for i, opt in enumerate(q['o']):
+            with cols[i%2]:
+                if st.button(opt, key=f"q_{i}"):
+                    if opt == q['a']:
+                        st.balloons(); st.success("Correct! +10 XP")
+                        c.execute("INSERT INTO progress VALUES (?, ?, 10)", (st.session_state.email, str(date.today())))
+                        conn.commit(); time.sleep(1); st.rerun()
+                    else: st.error("Try again!")
 
     elif page == "⚔️ Boss Battle":
         st.title("⚔️ DARK BOSS CHALLENGE")
@@ -149,7 +137,6 @@ else:
         with cb:
             st.write(f"Boss: {st.session_state.boss_hp}%")
             st.markdown(f"<div class='hp-bar'><div class='hp-fill' style='width:{st.session_state.boss_hp}%; background:#ff4b4b;'></div></div>", unsafe_allow_html=True)
-
         if st.session_state.boss_hp <= 0:
             st.balloons(); st.success("BOSS DEFEATED! +100 XP")
             c.execute("INSERT INTO progress VALUES (?, ?, 100)", (st.session_state.email, str(date.today()))); conn.commit()
@@ -178,7 +165,6 @@ else:
             if w and m:
                 c.execute("INSERT INTO dictionary VALUES (?,?,?)", (st.session_state.email, w, m))
                 conn.commit(); st.rerun()
-        
         rows = c.execute("SELECT word, meaning FROM dictionary WHERE email=?", (st.session_state.email,)).fetchall()
         for r in rows: st.markdown(f"<div class='metric-card' style='padding:10px; margin-bottom:5px;'>{r[0]} : {r[1]}</div>", unsafe_allow_html=True)
 
