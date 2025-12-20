@@ -45,12 +45,12 @@ MCQ_DATA = [
 st.set_page_config(page_title="English Guru V28", page_icon="🎮", layout="wide")
 st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Roboto:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
     
     .stApp {{ 
         background: radial-gradient(circle, #1a1a2e, #020205);
         color: #ffffff;
-        font-family: 'Roboto', sans-serif;
+        font-family: 'Rajdhani', sans-serif;
     }}
     
     .gaming-card {{
@@ -65,10 +65,9 @@ st.markdown(f"""
     
     .question-text {{
         font-family: 'Bungee', cursive;
-        font-size: 24px;
+        font-size: 26px;
         color: {st.session_state.theme};
         text-shadow: 0 0 10px {st.session_state.theme};
-        margin-bottom: 20px;
     }}
 
     .stButton>button {{
@@ -77,16 +76,16 @@ st.markdown(f"""
         border: none;
         border-radius: 12px;
         font-family: 'Bungee', cursive;
-        padding: 15px 30px;
+        padding: 15px;
         transition: 0.4s;
         width: 100%;
     }}
     .stButton>button:hover {{
-        transform: scale(1.05);
-        box-shadow: 0 0 30px {st.session_state.theme};
+        transform: scale(1.03);
+        box-shadow: 0 0 25px {st.session_state.theme};
     }}
 
-    .hp-bar {{ height: 25px; border-radius: 15px; background: #111; border: 2px solid #333; overflow: hidden; }}
+    .hp-bar {{ height: 25px; border-radius: 15px; background: #111; border: 1px solid #444; overflow: hidden; }}
     .hp-fill {{ height: 100%; transition: width 0.5s ease; }}
     </style>
     """, unsafe_allow_html=True)
@@ -107,6 +106,7 @@ if not st.session_state.logged_in:
                 if res and res[0] == h:
                     st.session_state.logged_in, st.session_state.user, st.session_state.email = True, res[1], e
                     st.rerun()
+                else: st.error("Access Denied!")
         with tab2:
             ne, nu, np = st.text_input("New Email"), st.text_input("Hero Name"), st.text_input("Set Key", type='password')
             if st.button("CREATE ACCOUNT"):
@@ -122,7 +122,7 @@ if not st.session_state.logged_in:
 # --- 6. MAIN CONTENT ---
 else:
     with st.sidebar:
-        st.markdown(f"<h2 style='color:{st.session_state.theme};'>🛡️ {st.session_state.user}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='color:{st.session_state.theme}; font-family:Bungee;'>🛡️ {st.session_state.user}</h2>", unsafe_allow_html=True)
         page = st.radio("MENU", ["🏠 Base", "🎓 Training", "⚔️ Boss Battle", "🗂️ Word Vault", "🏆 Leaderboard"])
         if st.button("EXIT"):
             st.session_state.logged_in = False
@@ -130,40 +130,40 @@ else:
 
     # --- DASHBOARD (NO GRAPH) ---
     if page == "🏠 Base":
-        st.markdown(f"<h1>COMMAND CENTER</h1>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='font-family:Bungee;'>COMMAND CENTER</h1>", unsafe_allow_html=True)
         c.execute("SELECT SUM(xp) FROM progress WHERE email = ?", (st.session_state.email,))
         txp = c.fetchone()[0] or 0
         
         col1, col2, col3 = st.columns(3)
-        with col1: st.markdown(f"<div class='gaming-card'>🏆 TOTAL XP<br><h2 style='color:{st.session_state.theme};'>{txp}</h2></div>", unsafe_allow_html=True)
-        with col2: st.markdown(f"<div class='gaming-card'>🎖️ RANK<br><h2 style='color:{st.session_state.theme};'>{'LEGEND' if txp > 500 else 'WARRIOR'}</h2></div>", unsafe_allow_html=True)
-        with col3: st.markdown(f"<div class='gaming-card'>⚡ LEVEL<br><h2 style='color:{st.session_state.theme};'>{1 + (txp // 100)}</h2></div>", unsafe_allow_html=True)
+        with col1: st.markdown(f"<div class='gaming-card'>🏆 TOTAL XP<br><h2 style='color:{st.session_state.theme}; font-family:Bungee;'>{txp}</h2></div>", unsafe_allow_html=True)
+        with col2: st.markdown(f"<div class='gaming-card'>🎖️ RANK<br><h2 style='color:{st.session_state.theme}; font-family:Bungee;'>{'LEGEND' if txp > 500 else 'WARRIOR'}</h2></div>", unsafe_allow_html=True)
+        with col3: st.markdown(f"<div class='gaming-card'>⚡ LEVEL<br><h2 style='color:{st.session_state.theme}; font-family:Bungee;'>{1 + (txp // 100)}</h2></div>", unsafe_allow_html=True)
         
-        st.markdown("<div class='gaming-card'><h3>CURRENT MISSION</h3><p>Complete Training or defeat the Boss to earn more XP!</p></div>", unsafe_allow_html=True)
+        st.markdown("<div class='gaming-card'><h3>CURRENT MISSION</h3><p>Enter the Training Zone to grind XP or face the Boss for a massive loot!</p></div>", unsafe_allow_html=True)
 
-    # --- MCQ TRAINING (UNLIMITED QUESTIONS) ---
+    # --- MCQ TRAINING (UNLIMITED) ---
     elif page == "🎓 Training":
-        st.markdown("<h1>MCQ TRAINING ZONE</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='font-family:Bungee;'>TRAINING ZONE</h1>", unsafe_allow_html=True)
         q = random.choice(MCQ_DATA)
         st.markdown(f"<div class='gaming-card'><div class='question-text'>{q['q']}</div></div>", unsafe_allow_html=True)
         
         cols = st.columns(2)
         for i, opt in enumerate(q['o']):
             with cols[i%2]:
-                if st.button(opt, key=f"q_{i}_{time.time()}"): # key fixed for unlimited questions
+                if st.button(opt, key=f"train_{i}_{time.time()}"):
                     if opt == q['a']:
                         st.balloons()
                         c.execute("INSERT INTO progress VALUES (?, ?, 10)", (st.session_state.email, str(date.today())))
                         conn.commit()
-                        st.success("Correct! +10 XP")
-                        time.sleep(1)
+                        st.success("CRITICAL HIT! +10 XP")
+                        time.sleep(0.8)
                         st.rerun()
                     else:
-                        st.error("Wrong Choice! Try again.")
+                        st.error("Missed! Try again.")
 
-    # --- BOSS BATTLE ---
+    # --- BOSS BATTLE (FIXED ERROR) ---
     elif page == "⚔️ Boss Battle":
-        st.markdown("<h1 style='color:#ff4b4b; text-shadow: 0 0 20px #ff4b4b;'>⚔️ BOSS RECKONING</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='color:#ff4b4b; font-family:Bungee; text-shadow: 0 0 20px #ff4b4b;'>BOSS BATTLE</h1>", unsafe_allow_html=True)
         
         col_p, col_b = st.columns(2)
         with col_p:
@@ -174,40 +174,51 @@ else:
             st.markdown(f"<div class='hp-bar'><div class='hp-fill' style='width:{st.session_state.boss_hp}%; background:#ff4b4b;'></div></div>", unsafe_allow_html=True)
 
         if st.session_state.boss_hp <= 0:
-            st.balloons(); st.success("BOSS DEFEATED! +100 XP")
-            c.execute("INSERT INTO progress VALUES (?, ?, 100)", (st.session_state.email, str(date.today()))); conn.commit()
-            if st.button("SPAWN NEW BOSS"): st.session_state.boss_hp = 100; st.session_state.player_hp = 100; st.rerun()
+            st.balloons()
+            st.success("BOSS DESTROYED! +100 XP")
+            c.execute("INSERT INTO progress VALUES (?, ?, 100)", (st.session_state.email, str(date.today())))
+            conn.commit()
+            if st.button("SPAWN NEW BOSS"):
+                st.session_state.boss_hp = 100
+                st.session_state.player_hp = 100
+                st.rerun()
         elif st.session_state.player_hp <= 0:
-            st.error("YOU DIED!"); if st.button("REVIVE"): st.session_state.player_hp = 100; st.session_state.boss_hp = 100; st.rerun()
+            st.error("YOU DIED!")
+            if st.button("REVIVE (Reset Battle)"):
+                st.session_state.player_hp = 100
+                st.session_state.boss_hp = 100
+                st.rerun()
         else:
             q = random.choice(MCQ_DATA)
-            st.markdown(f"<div class='gaming-card'><h3>CHALLENGE: {q['q']}</h3></div>", unsafe_allow_html=True)
-            ans = st.radio("ATTACK MOVE:", q['o'], horizontal=True)
-            if st.button("💥 HIT BOSS"):
+            st.markdown(f"<div class='gaming-card'><div class='question-text' style='font-size:18px;'>{q['q']}</div></div>", unsafe_allow_html=True)
+            ans = st.radio("PICK YOUR WEAPON:", q['o'], horizontal=True)
+            if st.button("💥 LAUNCH ATTACK"):
                 if ans == q['a']:
                     st.session_state.combo += 1
                     dmg = 20 * st.session_state.combo
                     st.session_state.boss_hp -= dmg
-                    st.session_state.battle_log = f"CRITICAL HIT! -{dmg} HP"
+                    st.session_state.battle_log = f"🔥 COMBO X{st.session_state.combo}! You dealt {dmg} damage!"
                 else:
                     st.session_state.combo = 0
                     st.session_state.player_hp -= 20
-                    st.session_state.battle_log = "BOSS HIT YOU! -20 HP"
+                    st.session_state.battle_log = "⚠️ BOSS COUNTERED! You took 20 damage!"
                 st.rerun()
         st.info(st.session_state.battle_log)
 
     elif page == "🗂️ Word Vault":
         st.title("🗂️ WORD VAULT")
         w, m = st.text_input("New Word"), st.text_input("Meaning")
-        if st.button("SAVE"):
+        if st.button("SAVE TO VAULT"):
             if w and m:
                 c.execute("INSERT INTO dictionary VALUES (?,?,?)", (st.session_state.email, w, m))
-                conn.commit(); st.rerun()
+                conn.commit()
+                st.rerun()
         rows = c.execute("SELECT word, meaning FROM dictionary WHERE email=?", (st.session_state.email,)).fetchall()
-        for r in rows: st.markdown(f"<div class='gaming-card' style='padding:10px;'>{r[0]} : {r[1]}</div>", unsafe_allow_html=True)
+        for r in rows:
+            st.markdown(f"<div class='gaming-card' style='padding:10px; margin:5px;'><b>{r[0]}</b> : {r[1]}</div>", unsafe_allow_html=True)
 
     elif page == "🏆 Leaderboard":
         st.title("🏆 RANKINGS")
         data = c.execute("SELECT u.username, SUM(p.xp) as total FROM progress p JOIN users u ON p.email = u.email GROUP BY u.email ORDER BY total DESC").fetchall()
         for i, row in enumerate(data):
-            st.markdown(f"<div class='gaming-card'>#{i+1} {row[0]} — {row[1]} XP</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='gaming-card' style='text-align:left;'>#{i+1} <b>{row[0]}</b> — {row[1]} XP</div>", unsafe_allow_html=True)
