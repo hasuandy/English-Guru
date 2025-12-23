@@ -2,111 +2,124 @@ import streamlit as st
 import random
 import time
 
-# --- 1. SYSTEM SETUP ---
+# --- 1. SESSION INITIALIZATION ---
 if 'xp' not in st.session_state: st.session_state.xp = 0
 if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 500
 if 'vault' not in st.session_state: st.session_state.vault = []
 if 'q_idx' not in st.session_state: st.session_state.q_idx = 0
 
-# --- 2. QUESTIONS ---
+# --- 2. QUESTIONS DATA ---
 questions = [
-    {"q": "I ____ a student.", "a": ["am", "is", "are"], "c": "am"},
-    {"q": "They ____ playing football.", "a": ["is", "am", "are"], "c": "are"},
-    {"q": "Apple is a ____.", "a": ["fruit", "animal", "bird"], "c": "fruit"},
-    {"q": "Sun rises in the ____.", "a": ["West", "East", "North"], "c": "East"}
+    {"q": "I ____ eating an apple.", "a": ["am", "is", "are"], "c": "am"},
+    {"q": "They ____ going to school.", "a": ["is", "am", "are"], "c": "are"},
+    {"q": "She ____ a beautiful song.", "a": ["sing", "sings", "singing"], "c": "sings"},
+    {"q": "Past tense of 'Run' is:", "a": ["Runned", "Ran", "Running"], "c": "Ran"}
 ]
 
-# --- 3. THE "INSTA-MODERN" CSS ---
-st.set_page_config(page_title="English Guru", layout="wide")
+# --- 3. PREMIUM UI STYLING (No Scroll Design) ---
+st.set_page_config(page_title="English Guru", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;600&display=swap');
+    /* Full Page Height Fix */
+    .main { background-color: #f8f9fa; }
+    .stApp { height: 100vh; overflow: hidden; } /* Prevents scrolling */
     
-    html, body, [class*="css"] { font-family: 'Outfit', sans-serif; background-color: #0e1117; }
-    
-    .main-title {
-        font-size: 3rem; font-weight: 600; text-align: center;
-        background: -webkit-linear-gradient(#00dbde, #fc00ff);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        margin-bottom: 40px;
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] { background-color: #1e1e2f; border-right: 2px solid #6c5ce7; }
+    [data-testid="stSidebar"] * { color: white !important; }
+
+    /* Title Styling */
+    .hero-title {
+        font-family: 'Poppins', sans-serif; font-size: 2.5rem; font-weight: 800;
+        color: #6c5ce7; text-align: center; margin-top: -50px;
     }
-    
-    .stat-card {
-        background: #161b22; border-radius: 15px; padding: 20px;
-        border: 1px solid #30363d; text-align: center; transition: 0.3s;
+
+    /* Cards */
+    .info-card {
+        background: white; border-radius: 15px; padding: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 5px solid #6c5ce7;
+        text-align: center; margin-bottom: 10px;
     }
-    .stat-card:hover { border-color: #fc00ff; transform: translateY(-5px); }
-    
-    .question-box {
-        background: #1c2128; border-radius: 20px; padding: 30px;
-        margin: 20px 0; border-left: 5px solid #00dbde;
-    }
-    
+
+    /* Custom Buttons */
     .stButton>button {
-        background: linear-gradient(45deg, #00dbde, #fc00ff) !important;
-        border: none !important; color: white !important; font-weight: 600 !important;
-        border-radius: 10px !important; height: 3em !important; width: 100%;
+        background: #6c5ce7 !important; color: white !important;
+        border-radius: 10px !important; width: 100%; border: none; height: 45px;
+        font-weight: bold; transition: 0.3s;
     }
-    
-    .badge {
-        display: inline-block; padding: 5px 15px; border-radius: 20px;
-        background: rgba(252, 0, 255, 0.1); color: #fc00ff; font-weight: 600;
-        margin: 5px; border: 1px solid #fc00ff;
-    }
+    .stButton>button:hover { background: #a29bfe !important; transform: scale(1.02); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. TOP NAVIGATION ---
-st.markdown("<h1 class='main-title'>English Guru</h1>", unsafe_allow_html=True)
+# --- 4. SIDEBAR NAVIGATION ---
+with st.sidebar:
+    st.markdown("<h1 style='text-align:center;'>🎴 MENU</h1>", unsafe_allow_html=True)
+    page = st.radio("CHOOSE ACTION:", ["🏠 HOME", "⚔️ BATTLE", "📚 VAULT", "🏅 BADGES"])
+    st.write("---")
+    st.markdown(f"**XP:** {st.session_state.xp}")
+    st.markdown(f"**BOSS:** {st.session_state.boss_hp} HP")
+    if st.button("RESET GAME"):
+        st.session_state.clear()
+        st.rerun()
 
-col1, col2, col3, col4 = st.columns(4)
-col1.markdown(f"<div class='stat-card'>✨<br><small>TOTAL XP</small><br><b>{st.session_state.xp}</b></div>", unsafe_allow_html=True)
-col2.markdown(f"<div class='stat-card'>🔥<br><small>STREAK</small><br><b>{st.session_state.xp // 100}</b></div>", unsafe_allow_html=True)
-col3.markdown(f"<div class='stat-card'>👹<br><small>BOSS HP</small><br><b>{st.session_state.boss_hp}</b></div>", unsafe_allow_html=True)
-col4.markdown(f"<div class='stat-card'>📖<br><small>WORDS</small><br><b>{len(st.session_state.vault)}</b></div>", unsafe_allow_html=True)
+# --- 5. PAGE LOGIC ---
 
-st.write("---")
+if page == "🏠 HOME":
+    st.markdown("<h1 class='hero-title'>Welcome, Warrior</h1>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f"<div class='info-card'><h3>🏆 XP POINTS</h3><h2>{st.session_state.xp}</h2></div>", unsafe_allow_html=True)
+    with c2:
+        rank = "ROOKIE" if st.session_state.xp < 200 else "EXPERT"
+        st.markdown(f"<div class='info-card'><h3>🎖️ CURRENT RANK</h3><h2>{rank}</h2></div>", unsafe_allow_html=True)
+    st.info("💡 Tip: Go to 'BATTLE' to earn XP and defeat the Boss!")
 
-# --- 5. CONTENT AREA ---
-c_left, c_right = st.columns([2, 1])
-
-with c_left:
-    st.markdown("<div class='question-box'>", unsafe_allow_html=True)
-    q = questions[st.session_state.q_idx % len(questions)]
-    st.subheader("Challenge of the Moment")
-    st.write(f"### {q['q']}")
-    ans = st.radio("Pick the right one:", q['a'], key=f"q_{st.session_state.q_idx}")
+elif page == "⚔️ BATTLE":
+    st.markdown("<h2 style='color:#6c5ce7;'>👹 BOSS BATTLE</h2>", unsafe_allow_html=True)
+    st.progress(st.session_state.boss_hp / 500)
     
-    if st.button("Submit Answer 🚀"):
+    st.markdown("<div class='info-card'>", unsafe_allow_html=True)
+    q = questions[st.session_state.q_idx % len(questions)]
+    st.write(f"### {q['q']}")
+    ans = st.radio("Choose correct answer:", q['a'], key=f"q_{st.session_state.q_idx}")
+    
+    if st.button("STRIKE!"):
         if ans == q['c']:
             st.session_state.xp += 50
             st.session_state.boss_hp -= 100
-            st.balloons()
-            st.success("Great job! -100 HP to Boss.")
+            st.success("BAM! -100 HP")
+            if st.session_state.boss_hp <= 0:
+                st.balloons()
+                st.session_state.boss_hp = 500
         else:
-            st.error("Oops! Wrong answer.")
+            st.error("MISS! Correct answer was: " + q['c'])
         
         st.session_state.q_idx += 1
         time.sleep(1)
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-with c_right:
-    st.write("### 🏅 Achievements")
-    if len(st.session_state.vault) >= 1: st.markdown("<span class='badge'>📖 Word Learner</span>", unsafe_allow_html=True)
-    if st.session_state.xp >= 200: st.markdown("<span class='badge'>⚔️ Warrior</span>", unsafe_allow_html=True)
-    if not st.session_state.vault and st.session_state.xp < 200: st.write("No badges yet.")
+elif page == "📚 VAULT":
+    st.markdown("<h2 style='color:#6c5ce7;'>📖 WORD VAULT</h2>", unsafe_allow_html=True)
+    with st.expander("➕ Add New Word", expanded=True):
+        w = st.text_input("Word")
+        m = st.text_input("Meaning")
+        if st.button("Save Knowledge"):
+            if w and m:
+                st.session_state.vault.append({"w": w, "m": m})
+                st.rerun()
     
-    st.write("---")
-    st.write("### 🔒 Word Vault")
-    w = st.text_input("New Word")
-    m = st.text_input("Meaning")
-    if st.button("Add Word"):
-        if w and m:
-            st.session_state.vault.append({"w": w, "m": m})
-            st.rerun()
+    if st.session_state.vault:
+        for item in st.session_state.vault[-3:]: # Sirf last 3 taaki scroll na ho
+            st.write(f"✅ **{item['w']}**: {item['m']}")
 
-if st.sidebar.button("Reset Everything"):
-    st.session_state.clear()
-    st.rerun()
+elif page == "🏅 BADGES":
+    st.markdown("<h2 style='color:#6c5ce7;'>🏅 YOUR ACHIEVEMENTS</h2>", unsafe_allow_html=True)
+    col_a, col_b = st.columns(2)
+    if len(st.session_state.vault) >= 1:
+        col_a.markdown("<div class='info-card'>📖<br>Scholar</div>", unsafe_allow_html=True)
+    if st.session_state.xp >= 200:
+        col_b.markdown("<div class='info-card'>⚔️<br>Warrior</div>", unsafe_allow_html=True)
+    if not st.session_state.vault and st.session_state.xp < 200:
+        st.write("No badges earned yet. Go fight!")
