@@ -2,118 +2,97 @@ import streamlit as st
 import random
 import time
 
-# --- 1. SYSTEM INITIALIZATION ---
+# --- 1. SESSION STATE ---
 if 'xp' not in st.session_state: st.session_state.xp = 0
 if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 500
 if 'vault' not in st.session_state: st.session_state.vault = []
-if 'q_index' not in st.session_state: st.session_state.q_index = 0
-if 'achievements' not in st.session_state: st.session_state.achievements = set()
+if 'q_idx' not in st.session_state: st.session_state.q_idx = 0
 
-# --- 2. MEGA QUESTION BANK ---
+# --- 2. QUESTIONS ---
 questions = [
-    {"q": "He ____ a doctor.", "a": ["is", "are", "am"], "c": "is"},
-    {"q": "They ____ to the park yesterday.", "a": ["go", "went", "going"], "c": "went"},
-    {"q": "She ____ like apples.", "a": ["don't", "doesn't", "isn't"], "c": "doesn't"},
-    {"q": "Neither of us ____ ready.", "a": ["is", "are", "am"], "c": "is"},
-    {"q": "I have ____ my lunch.", "a": ["eat", "ate", "eaten"], "c": "eaten"},
-    {"q": "Choose the correct spelling:", "a": ["Recieve", "Receive", "Receve"], "c": "Receive"},
-    {"q": "Look! The baby ____.", "a": ["sleeps", "is sleeping", "sleep"], "c": "is sleeping"}
+    {"q": "Choose the correct: 'She ____ English very well.'", "a": ["speak", "speaks", "speaking"], "c": "speaks"},
+    {"q": "Past tense of 'Buy' is:", "a": ["Bought", "Buyed", "Buying"], "c": "Bought"},
+    {"q": "Opposite of 'Success' is:", "a": ["Winner", "Failure", "Victory"], "c": "Failure"},
+    {"q": "Correct spelling:", "a": ["Believe", "Beleive", "Belive"], "c": "Believe"},
+    {"q": "I ____ a movie now.", "a": ["watch", "am watching", "watched"], "c": "am watching"}
 ]
 
-# --- 3. STYLING (The "Pro" Gaming Look) ---
-st.set_page_config(page_title="English Guru V43", layout="wide")
+# --- 3. PREMIUM CSS (Modern & Sleek) ---
+st.set_page_config(page_title="English Guru Pro", layout="centered")
+
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Share+Tech+Mono&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=Bungee&display=swap');
     
-    .stApp { background-color: #0d0d0d; color: #00ff41; font-family: 'Share Tech Mono', monospace; }
+    .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: white; font-family: 'Poppins', sans-serif; }
     
-    .terminal-box {
-        border: 2px solid #00ff41;
-        padding: 20px;
-        border-radius: 5px;
-        background: rgba(0, 255, 65, 0.05);
-        box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
-        margin-bottom: 20px;
-    }
+    .main-header { font-family: 'Bungee'; font-size: 3.5rem; text-align: center; color: #FFD700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); margin-bottom: 30px; }
     
-    .main-title {
-        font-family: 'Bungee';
-        font-size: 4rem;
-        text-align: center;
-        color: #00ff41;
-        text-shadow: 2px 2px #ff0055;
-    }
+    .card { background: rgba(255, 255, 255, 0.05); border-radius: 20px; padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); margin-bottom: 20px; }
     
-    .stat-label { color: #ff0055; font-family: 'Bungee'; font-size: 1.2rem; }
-    .stat-value { color: #00ff41; font-size: 2.5rem; font-weight: bold; }
+    .stat-text { font-size: 1.1rem; color: #b0b0b0; text-transform: uppercase; letter-spacing: 2px; }
+    .stat-val { font-size: 2.2rem; font-weight: 700; color: #FFD700; }
     
-    /* Hide Streamlit elements for cleaner look */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    .stButton>button { background: linear-gradient(90deg, #FFD700, #FFA500) !important; color: black !important; font-weight: bold !important; border-radius: 30px !important; border: none !important; padding: 10px 30px !important; width: 100%; transition: 0.3s; }
+    .stButton>button:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(255, 215, 0, 0.3); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. HEADER & STATS ---
-st.markdown("<h1 class='main-title'>ENGLISH GURU</h1>", unsafe_allow_html=True)
+# --- 4. TOP BAR (STATS) ---
+st.markdown("<h1 class='main-header'>ENGLISH GURU</h1>", unsafe_allow_html=True)
 
-# Top Bar Stats
-c1, c2, c3, c4 = st.columns(4)
-with c1: st.markdown(f"<div class='terminal-box'><span class='stat-label'>XP</span><br><span class='stat-value'>{st.session_state.xp}</span></div>", unsafe_allow_html=True)
+c1, c2, c3 = st.columns(3)
+with c1: st.markdown(f"<div class='card'><span class='stat-text'>🏆 XP</span><br><span class='stat-val'>{st.session_state.xp}</span></div>", unsafe_allow_html=True)
 with c2: 
-    rank = "NOOB" if st.session_state.xp < 200 else "PRO" if st.session_state.xp < 500 else "LEGEND"
-    st.markdown(f"<div class='terminal-box'><span class='stat-label'>RANK</span><br><span class='stat-value'>{rank}</span></div>", unsafe_allow_html=True)
-with c3: st.markdown(f"<div class='terminal-box'><span class='stat-label'>WORDS</span><br><span class='stat-value'>{len(st.session_state.vault)}</span></div>", unsafe_allow_html=True)
-with c4: st.markdown(f"<div class='terminal-box'><span class='stat-label'>BOSS HP</span><br><span class='stat-value'>{st.session_state.boss_hp}</span></div>", unsafe_allow_html=True)
+    rank = "Trainee" if st.session_state.xp < 250 else "Elite"
+    st.markdown(f"<div class='card'><span class='stat-text'>🎖️ Rank</span><br><span class='stat-val'>{rank}</span></div>", unsafe_allow_html=True)
+with c3: st.markdown(f"<div class='card'><span class='stat-text'>👹 Boss</span><br><span class='stat-val'>{st.session_state.boss_hp}</span></div>", unsafe_allow_html=True)
 
-# --- 5. BATTLE & VAULT SIDE-BY-SIDE ---
-left_col, right_col = st.columns([2, 1])
+# --- 5. MAIN ACTION AREA ---
+col_left, col_right = st.columns([1.5, 1])
 
-with left_col:
-    st.markdown("<div class='terminal-box'>", unsafe_allow_html=True)
-    st.subheader("👹 ACTIVE MISSION: BOSS BATTLE")
+with col_left:
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.subheader("⚔️ Battle Arena")
+    q = questions[st.session_state.q_idx % len(questions)]
+    st.write(f"### {q['q']}")
+    ans = st.radio("Choose your answer:", q['a'], key=f"q_{st.session_state.q_idx}")
     
-    q_data = questions[st.session_state.q_index % len(questions)]
-    st.write(f"### > {q_data['q']}")
-    ans = st.radio("SELECT WEAPON:", q_data['a'], key="battle_radio")
-    
-    if st.button("EXECUTE ATTACK 💥"):
-        if ans == q_data['c']:
+    if st.button("STRIKE NOW!"):
+        if ans == q['c']:
             st.session_state.xp += 50
             st.session_state.boss_hp -= 100
-            st.success("SUCCESS: 100 DMG DEALT")
+            st.success("Correct Strike! +50 XP")
             if st.session_state.boss_hp <= 0:
                 st.balloons()
                 st.session_state.boss_hp = 500
         else:
-            st.error("ERROR: ATTACK FAILED")
+            st.error("Missed! Try again.")
         
-        st.session_state.q_index += 1
+        st.session_state.q_idx += 1
         time.sleep(0.5)
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-with right_col:
-    st.markdown("<div class='terminal-box'>", unsafe_allow_html=True)
-    st.subheader("📚 WORD VAULT")
-    w = st.text_input("INPUT WORD:")
-    m = st.text_input("INPUT MEANING:")
-    if st.button("ENCRYPT & SAVE"):
+with col_right:
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.subheader("📚 Vault")
+    w = st.text_input("New Word")
+    m = st.text_input("Meaning")
+    if st.button("Save Knowledge"):
         if w and m:
             st.session_state.vault.append({"w": w, "m": m})
-            st.success("SAVED")
+            st.toast("Saved!")
             st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
     
-    # Achievements Section
-    st.markdown("<div class='terminal-box'>", unsafe_allow_html=True)
-    st.subheader("🏅 BADGES")
-    if len(st.session_state.vault) >= 1: st.write("✅ SCHOLAR")
-    if st.session_state.xp >= 200: st.write("✅ WARRIOR")
-    if st.session_state.xp >= 500: st.write("✅ MASTER")
+    # Simple Achievement Badges
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.subheader("🏅 Badges")
+    if len(st.session_state.vault) >= 1: st.write("✅ Scholar")
+    if st.session_state.xp >= 200: st.write("✅ Warrior")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Footer Reset
-if st.button("RESET SYSTEM"):
+if st.button("Reset Game"):
     st.session_state.clear()
     st.rerun()
