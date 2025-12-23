@@ -5,59 +5,67 @@ import time
 if 'xp' not in st.session_state: st.session_state.xp = 0
 if 'vault' not in st.session_state: st.session_state.vault = []
 if 'streak' not in st.session_state: st.session_state.streak = 1
-if 'level' not in st.session_state: st.session_state.level = None  # Placement Test check
+if 'level' not in st.session_state: st.session_state.level = None 
 
-# --- 2. HIGH CONTRAST DARK THEME ---
+# --- 2. HIGH-CONTRAST DARK THEME ---
 st.set_page_config(page_title="English Guru Pro", layout="wide")
 
 st.markdown("""
     <style>
-    /* Dark Background & White Text */
+    /* Dark Background */
     .stApp { background-color: #050505; color: #ffffff; }
+    
+    /* Global Text Color */
     h1, h2, h3, p, span, label, .stMarkdown { color: #ffffff !important; }
     
-    /* Highlight Cards */
+    /* Highlighted Cards */
     .main-card { 
-        background-color: #111111; 
+        background-color: #121212; 
         padding: 20px; 
         border-radius: 15px; 
         border: 2px solid #6c5ce7; 
         margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(108, 92, 231, 0.2);
     }
     
-    /* Custom Metric Visibility */
-    [data-testid="stMetricValue"] { color: #00d1b2 !important; font-size: 30px !important; }
+    /* Metrics Visibility */
+    [data-testid="stMetricValue"] { color: #00d1b2 !important; font-size: 35px !important; font-weight: bold; }
     
-    /* Action Buttons */
+    /* Buttons Styling */
     .stButton>button { 
         background: linear-gradient(45deg, #6c5ce7, #a29bfe) !important; 
         color: white !important; 
         font-weight: bold !important;
         height: 50px; width: 100%; border: none !important;
+        border-radius: 12px !important;
     }
 
     /* Input Fields */
     input { background-color: #1a1a1a !important; color: white !important; border: 1px solid #444 !important; }
+    
+    /* Tabs Customization */
+    .stTabs [data-baseweb="tab"] { color: #ffffff !important; font-size: 16px !important; }
+    .stTabs [aria-selected="true"] { border-bottom: 3px solid #6c5ce7 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. PLACEMENT TEST LOGIC ---
+# --- 3. PLACEMENT TEST ---
 if st.session_state.level is None:
-    st.markdown("<h1 style='text-align: center; color: #6c5ce7;'>🎯 English Placement Test</h1>", unsafe_allow_html=True)
-    st.write("Welcome! Chaliye pehle aapka level check karte hain.")
+    st.markdown("<h1 style='text-align: center; color: #6c5ce7;'>🎯 Placement Test</h1>", unsafe_allow_html=True)
+    st.write("Aapka sahi learning path chunne ke liye ye test zaruri hai:")
     
     with st.form("placement_test"):
         st.markdown("<div class='main-card'>", unsafe_allow_html=True)
-        q1 = st.radio("1. 'They ___ already left the party.'", ["has", "have", "is"])
-        q2 = st.radio("2. 'If I ____ rich, I would buy a car.'", ["am", "was", "were"])
-        q3 = st.radio("3. Meaning of 'Elated':", ["Sad", "Very Happy", "Angry"])
+        q1 = st.radio("1. 'Neither of the students ___ finished the work.'", ["has", "have"])
+        q2 = st.radio("2. 'If it rains, we ___ at home.'", ["will stay", "would stay", "stayed"])
+        q3 = st.radio("3. 'Antonym of 'Gigantic' is:'", ["Huge", "Tiny", "Strong"])
         st.markdown("</div>", unsafe_allow_html=True)
         
-        if st.form_submit_button("Result Dekhein 🚀"):
+        if st.form_submit_button("Test Submit Karein"):
             score = 0
-            if q1 == "have": score += 1
-            if q2 == "were": score += 1
-            if q3 == "Very Happy": score += 1
+            if q1 == "has": score += 1
+            if q2 == "will stay": score += 1
+            if q3 == "Tiny": score += 1
             
             if score == 0: st.session_state.level = "Beginner"
             elif score <= 2: st.session_state.level = "Intermediate"
@@ -65,80 +73,85 @@ if st.session_state.level is None:
             st.rerun()
     st.stop()
 
-# --- 4. MAIN NAVIGATION AFTER TEST ---
+# --- 4. MAIN INTERFACE ---
 st.markdown(f"<h1 style='text-align: center;'>🚀 ENGLISH GURU: {st.session_state.level.upper()}</h1>", unsafe_allow_html=True)
 
-# Top Dashboard
+# Dashboard Summary
 c1, c2, c3 = st.columns(3)
-c1.metric("🏆 TOTAL XP", st.session_state.xp)
+c1.metric("🏆 XP", st.session_state.xp)
 c2.metric("🔥 STREAK", f"{st.session_state.streak} Days")
-c3.metric("🎖️ LEVEL", st.session_state.level)
+c3.metric("🎖️ RANK", st.session_state.level)
 
 st.markdown("---")
-tabs = st.tabs(["📚 LESSONS", "⚔️ PRACTICE", "📖 VAULT", "📊 PROGRESS"])
+tabs = st.tabs(["📚 LESSONS", "⚔️ PRACTICE", "📖 VAULT", "📈 STATS"])
 
-# --- TAB 1: CURRICULUM ---
+# --- TAB: LESSONS ---
 with tabs[0]:
-    st.markdown("### Structured Modules")
+    st.markdown("### 🎓 Personalised Path")
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
     if st.session_state.level == "Beginner":
-        st.subheader("Lesson 1: Introduction & Greetings")
-        st.write("Learn: Hello, Thank You, Excuse Me.")
+        st.subheader("Module 1: Building Sentences")
+        st.write("Concepts: Is/Am/Are, Nouns, and Pronouns.")
     elif st.session_state.level == "Intermediate":
-        st.subheader("Lesson 1: Conditional Sentences")
-        st.write("Learn: 'If' clauses and hypothetical situations.")
+        st.subheader("Module 1: Perfect Tenses")
+        st.write("Concepts: Has/Have + V3, Been, and Duration.")
     else:
-        st.subheader("Lesson 1: Professional Writing")
-        st.write("Learn: Business Etiquette and Formal Emails.")
+        st.subheader("Module 1: Complex Clauses")
+        st.write("Concepts: Relative clauses and Phrasal Verbs.")
     
-    if st.button("Complete Lesson ✅"):
-        st.session_state.xp += 30
-        st.toast("Lesson Mastered! +30 XP")
+    if st.button("Complete & Earn 50 XP"):
+        st.session_state.xp += 50
+        st.success("Module Completed!")
         time.sleep(1)
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TAB 2: PRACTICE (Speaking/Listening) ---
+# --- TAB: PRACTICE ---
 with tabs[1]:
-    st.markdown("### Skills Training")
-    act = st.selectbox("Action:", ["Speaking Practice (Simulation)", "Listening Comprehension"])
+    st.markdown("### 🎙️ Skills Arena")
+    mode = st.selectbox("Practice Mode:", ["Speaking Immersion", "Listening Skills"])
     
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
-    if "Speaking" in act:
-        st.write(f"Repeat this: **'I am determined to master the English language.'**")
-        st.button("🎙️ Start Recording (Bypass AI)")
+    if "Speaking" in mode:
+        st.write("Say this clearly: **'Consistency is the key to success.'**")
+        st.button("🎙️ Record Voice (AI Bypassed)")
     else:
-        st.audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3")
-        st.write("Listen carefully and write down the context below.")
-        st.text_area("Your Notes:")
+        st.audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3")
+        st.write("Listen to the conversation and take notes.")
+        st.text_input("What was the main topic?")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TAB 3: VOCABULARY VAULT (SRS Logic) ---
+# --- TAB: VAULT ---
 with tabs[2]:
-    st.markdown("### Vocabulary Builder")
-    col_w, col_m = st.columns(2)
-    new_word = col_w.text_input("New Word")
-    new_mean = col_m.text_input("Meaning")
+    st.markdown("### 📖 My Contextual Dictionary")
+    cw, cm = st.columns(2)
+    new_w = cw.text_input("New English Word")
+    new_m = cm.text_input("Meaning/Sentence")
     
-    if st.button("Save to Vault 🔒"):
-        if new_word and new_mean:
-            st.session_state.vault.append({"w": new_word, "m": new_mean})
-            st.success("Word Saved!")
+    if st.button("Save to My Vault"):
+        if new_w and new_m:
+            st.session_state.vault.append({"w": new_w, "m": new_m})
+            st.success("Secured in Vault!")
             st.rerun()
     
     st.markdown("---")
-    st.subheader("Flashcards")
-    for item in reversed(st.session_state.vault):
-        st.markdown(f"<div class='main-card'><b>{item['w']}</b> : {item['m']}</div>", unsafe_allow_html=True)
+    if not st.session_state.vault:
+        st.info("Aapka vault khali hai.")
+    else:
+        for item in reversed(st.session_state.vault):
+            st.markdown(f"<div class='main-card'><b>{item['w']}</b> : {item['m']}</div>", unsafe_allow_html=True)
 
-# --- TAB 4: PROGRESS ---
+# --- TAB: STATS ---
 with tabs[3]:
-    st.markdown("### Learning Analytics")
-    st.write(f"Words Collected: **{len(st.session_state.vault)}**")
-    st.write(f"Lessons Finished: **{st.session_state.xp // 30}**")
-    st.bar_chart({"XP Growth": [0, 10, 20, 30, st.session_state.xp]})
+    st.markdown("### 📈 Your Growth Tracker")
+    st.markdown("<div class='main-card'>", unsafe_allow_html=True)
+    st.write(f"Total XP: **{st.session_state.xp}**")
+    st.write(f"Words in Vault: **{len(st.session_state.vault)}**")
+    st.progress(min(st.session_state.xp / 1000, 1.0))
+    st.bar_chart({"XP Progress": [10, 50, 20, 100, st.session_state.xp]})
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# Sidebar Reset
-if st.sidebar.button("Reset All Data"):
+# SIDEBAR RESET
+if st.sidebar.button("Hard Reset Progress"):
     st.session_state.clear()
     st.rerun()
