@@ -1,120 +1,139 @@
 import streamlit as st
+import sqlite3
+import hashlib
+import pandas as pd
 import random
 import time
 
-# --- 1. SESSION STATE INITIALIZATION ---
-if 'xp' not in st.session_state: st.session_state.xp = 0
-if 'vault' not in st.session_state: st.session_state.vault = []
-if 'q_index' not in st.session_state: st.session_state.q_index = 0
-
-# --- 2. THE 200+ QUESTION ENGINE ---
-# Aap is list mein 200 questions tak add kar sakte hain, format same rakhein
-questions_bank = [
-    {"q": "I ____ to the gym every day.", "options": ["go", "goes", "going", "went"], "a": "go"},
-    {"q": "She ____ been studying for 3 hours.", "options": ["has", "have", "is", "was"], "a": "has"},
-    {"q": "Neither of the boys ____ present.", "options": ["was", "were", "are", "have"], "a": "was"},
-    {"q": "I am looking forward to ____ you.", "options": ["meet", "meeting", "met", "meets"], "a": "meeting"},
-    {"q": "I prefer tea ____ coffee.", "options": ["than", "to", "from", "over"], "a": "to"},
-    {"q": "Meaning of 'Break a leg':", "options": ["Good luck", "Bad luck", "Get angry", "To fall"], "a": "Good luck"},
-    {"q": "If I ____ you, I wouldn't do that.", "options": ["am", "was", "were", "be"], "a": "were"},
-    {"q": "He is ____ honest man.", "options": ["a", "an", "the", "no article"], "a": "an"},
-    {"q": "The train ____ before I reached the station.", "options": ["left", "had left", "has left", "was leaving"], "a": "had left"},
-    {"q": "Choose the correct spelling:", "options": ["Maintainance", "Maintenance", "Maintenence", "Maintainence"], "a": "Maintenance"}
-]
-
-# Randomize questions for the session so it stays interesting
-if 'shuffled_indices' not in st.session_state:
-    st.session_state.shuffled_indices = random.sample(range(len(questions_bank)), len(questions_bank))
-
-# --- 3. HIGH-CONTRAST NEON STYLING ---
+# --- 1. UI CONFIG (Wahi Purana Gaming Look) ---
 st.set_page_config(page_title="English Guru Pro", layout="wide")
+
 st.markdown("""
     <style>
-    .stApp { background-color: #000000; color: #ffffff; }
-    
-    /* Neon Question Card */
-    .slide-card { 
-        background-color: #0d0d0d; border: 3px solid #6c5ce7; 
-        padding: 40px; border-radius: 25px; text-align: center;
-        box-shadow: 0 0 30px #6c5ce744; margin-top: 20px;
+    /* Full Page Gaming Background */
+    .stApp {
+        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
+                    url('https://wallpaperaccess.com/full/2565415.jpg');
+        background-size: cover;
+        background-position: center;
+        color: #ffffff;
     }
     
-    .question-text { color: #00ffcc; font-size: 32px; font-weight: bold; margin-bottom: 25px; }
-    
-    /* Interactive MCQ Styling */
-    .stButton>button { 
-        background: linear-gradient(45deg, #6c5ce7, #00ffcc) !important; 
-        color: #000 !important; font-weight: 900 !important; font-size: 20px !important;
-        height: 65px; border-radius: 15px; border: none !important;
+    /* Neon Glow Cards (Pehle Jaisa Look) */
+    .metric-card {
+        background: rgba(0, 242, 255, 0.1);
+        padding: 25px;
+        border-radius: 15px;
+        border: 2px solid #00f2ff;
+        box-shadow: 0 0 20px #00f2ff;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: 0.3s;
     }
-    
-    /* Radio Button Text Size */
-    .stRadio [data-testid="stMarkdownContainer"] { 
-        font-size: 24px !important; color: #ffffff !important; font-weight: 500;
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0 35px #00f2ff;
     }
-    
-    /* Tabs Customization */
-    .stTabs [data-baseweb="tab"] { color: #ffffff !important; font-size: 18px !important; }
+
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .stTabs [data-baseweb="tab"] {
+        background-color: rgba(255,255,255,0.05);
+        border-radius: 10px 10px 0 0;
+        padding: 10px 20px;
+        color: #00f2ff;
+    }
+
+    /* Buttons */
+    .stButton>button {
+        background: linear-gradient(45deg, #00f2ff, #7000ff);
+        color: white !important;
+        border-radius: 10px;
+        border: none;
+        padding: 10px 25px;
+        font-weight: bold;
+        box-shadow: 0 0 15px #7000ff;
+        width: 100%;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. DASHBOARD & NAVIGATION ---
-st.markdown("<h1 style='text-align:center; color:#6c5ce7;'>⚡ ENGLISH GURU PRO ⚡</h1>", unsafe_allow_html=True)
+# --- 2. DATABASE SETUP ---
+conn = sqlite3.connect('english_guru_final.db', check_same_thread=False)
+c = conn.cursor()
+c.execute('CREATE TABLE IF NOT EXISTS users(username TEXT PRIMARY KEY, password TEXT, xp INTEGER)')
+conn.commit()
 
-tab1, tab2, tab3 = st.tabs(["🚀 INTERACTIVE SLIDES", "📚 WORD VAULT", "📈 PROGRESS"])
+# --- 3. SESSION STATE ---
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
-with tab1:
-    # Current question selection logic
-    current_idx = st.session_state.shuffled_indices[st.session_state.q_index % len(questions_bank)]
-    q_data = questions_bank[current_idx]
-
-    st.markdown("<div class='slide-card'>", unsafe_allow_html=True)
-    st.markdown(f"<p class='question-text'>{q_data['q']}</p>", unsafe_allow_html=True)
+# --- 4. LOGIN / SIGNUP UI ---
+if not st.session_state.logged_in:
+    st.markdown("<h1 style='text-align: center; color: #00f2ff; text-shadow: 0 0 25px #00f2ff;'>🛡️ ENGLISH GURU ARENA</h1>", unsafe_allow_html=True)
     
-    # MCQ UI
-    user_choice = st.radio("Sahi Jawab Chunein:", q_data['options'], key=f"q_{st.session_state.q_index}")
+    col1, col2, col3 = st.columns([1,1.5,1])
+    with col2:
+        tab1, tab2 = st.tabs(["⚡ LOGIN", "📝 JOIN GUILD"])
+        
+        with tab1:
+            u = st.text_input("Hero Name")
+            p = st.text_input("Secret Key", type='password')
+            if st.button("START MISSION"):
+                h = hashlib.sha256(p.encode()).hexdigest()
+                c.execute('SELECT password FROM users WHERE username=?', (u,))
+                res = c.fetchone()
+                if res and res[0] == h:
+                    st.session_state.logged_in = True
+                    st.session_state.user = u
+                    st.rerun()
+                else: st.error("Wrong Key! Try Again.")
+        
+        with tab2:
+            nu = st.text_input("Choose Hero Name")
+            np = st.text_input("Create Secret Key", type='password')
+            inv = st.text_input("Verification Code")
+            if st.button("REGISTER HERO"):
+                if inv == "GURU77":
+                    h = hashlib.sha256(np.encode()).hexdigest()
+                    try:
+                        c.execute('INSERT INTO users VALUES (?,?,0)', (nu, h))
+                        conn.commit()
+                        st.success("Hero Registered! Now Login.")
+                    except: st.error("Name already taken!")
+                else: st.warning("Hint: Verification Code is GURU77")
+
+# --- 5. MAIN APP (After Login) ---
+else:
+    st.sidebar.markdown(f"<h2 style='color:#00f2ff;'>👤 {st.session_state.user}</h2>", unsafe_allow_html=True)
+    page = st.sidebar.radio("Navigation", ["🏠 Home Base", "🎓 MCQ Training", "⚔️ Boss Battle"])
     
-    st.write("---")
-    
-    c_btn1, c_btn2 = st.columns(2)
-    with c_btn1:
-        if st.button("Submit Answer ✅"):
-            if user_choice == q_data['a']:
-                st.session_state.xp += 50
-                st.balloons()
-                st.success("Correct! +50 XP Earned.")
-                time.sleep(1)
-                st.session_state.q_index += 1
-                st.rerun()
-            else:
-                st.error(f"Opps! Correct answer was: {q_data['a']}")
-                
-    with c_btn2:
-        if st.button("Next Slide ⏭️"):
-            st.session_state.q_index += 1
-            st.rerun()
-            
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.write(f"Question Progress: {st.session_state.q_index + 1} / {len(questions_bank)}")
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
 
-with tab2:
-    st.subheader("Your Contextual Dictionary")
-    with st.form("vault_form"):
-        w = st.text_input("Naya Word:")
-        m = st.text_input("Meaning/Sentence:")
-        if st.form_submit_button("Add to Vault"):
-            if w and m:
-                st.session_state.vault.append(f"{w} : {m}")
-                st.rerun()
-    for item in reversed(st.session_state.vault):
-        st.info(item)
+    if page == "🏠 Home Base":
+        st.markdown(f"<h2 style='color: #00f2ff;'>Welcome back, Warrior!</h2>", unsafe_allow_html=True)
+        
+        c1, c2, c3 = st.columns(3)
+        with c1: st.markdown("<div class='metric-card'>🏆 TOTAL XP<br><h2>850</h2></div>", unsafe_allow_html=True)
+        with c2: st.markdown("<div class='metric-card'>🎖️ RANK<br><h2>ELITE</h2></div>", unsafe_allow_html=True)
+        with c3: st.markdown("<div class='metric-card'>🔥 STREAK<br><h2>7 DAYS</h2></div>", unsafe_allow_html=True)
+        
+        st.write("### 📈 Level Progress")
+        st.area_chart(pd.DataFrame([20, 45, 30, 70, 90], columns=['XP']))
 
-with tab3:
-    st.markdown(f"## Your Total XP: **{st.session_state.xp}**")
-    st.bar_chart({"XP Growth": [0, 50, 100, 200, st.session_state.xp]})
-    st.write("Keep going! Har slide par +50 XP milte hain.")
+    elif page == "🎓 MCQ Training":
+        st.title("🎯 Academy")
+        st.info("Identify the Correct Synonym for 'GENEROUS':")
+        if st.button("Kind"): 
+            st.balloons()
+            st.success("Brilliant! +10 XP")
+        if st.button("Selfish"): 
+            st.error("Incorrect! Try again.")
 
-# Sidebar Reset
-if st.sidebar.button("Hard Reset All Progress"):
-    st.session_state.clear()
-    st.rerun()
+    elif page == "⚔️ Boss Battle":
+        st.title("⚔️ Final Boss Fight")
+        st.progress(0.6, text="Boss HP: 60%")
+        if st.button("💥 USE SPECIAL ATTACK"):
+            st.snow()
+            st.success("Critical Hit!")
