@@ -5,9 +5,9 @@ import time
 # --- 1. INITIALIZATION ---
 if 'xp' not in st.session_state: st.session_state.xp = 0
 if 'vault' not in st.session_state: st.session_state.vault = []
-if 'streak' not in st.session_state: st.session_state.streak = 1
+if 'daily_goal' not in st.session_state: st.session_state.daily_goal = 200
 
-# --- 2. THEME (Deep Black & Neon) ---
+# --- 2. THEME & STYLING (Neon High Contrast) ---
 st.set_page_config(page_title="English Guru Pro", layout="wide")
 st.markdown("""
     <style>
@@ -16,82 +16,111 @@ st.markdown("""
         background-color: #0a0a0a; border: 2px solid #00ffcc; 
         padding: 20px; border-radius: 15px; margin-bottom: 15px; 
     }
+    .goal-text { color: #ffcc00; font-weight: bold; font-size: 18px; }
     .neon-text { color: #00ffcc; font-weight: bold; font-size: 20px; }
-    .stButton>button { background: #00ffcc !important; color: black !important; font-weight: bold; border-radius: 10px; }
+    .stButton>button { background: #00ffcc !important; color: black !important; font-weight: bold; border-radius: 10px; height: 50px; }
     input { background-color: #1a1a1a !important; color: white !important; border: 1px solid #00ffcc !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. CORE SRS FUNCTION ---
-def add_to_vault(word, meaning):
-    # Review set to Today for testing (taaki turant option dikhe)
-    review_date = datetime.date.today()
-    st.session_state.vault.append({
-        "word": word, 
-        "meaning": meaning, 
-        "review_date": review_date,
-        "mastery": 0
-    })
-
-# --- 4. UI HEADER ---
+# --- 3. UI HEADER ---
 st.markdown("<h1 style='text-align:center; color:#00ffcc;'>🛡️ ENGLISH GURU PRO</h1>", unsafe_allow_html=True)
+
+# --- 4. DASHBOARD (Visual Progress & Daily Goals) ---
+st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.subheader("📊 Visual Progress")
 col1, col2 = st.columns(2)
-col1.metric("🏆 TOTAL XP", st.session_state.xp)
-col2.metric("🔥 STREAK", f"{st.session_state.streak} Days")
 
-tabs = st.tabs(["🏠 Dashboard", "📝 Practice (SRS)", "📚 Word Vault"])
+with col1:
+    st.metric("🏆 Your Total XP", st.session_state.xp)
+    progress = min(st.session_state.xp / st.session_state.daily_goal, 1.0)
+    st.write(f"Daily Goal: **{st.session_state.xp}/{st.session_state.daily_goal} XP**")
+    st.progress(progress)
+    if progress >= 1.0:
+        st.success("🎉 Daily Goal Achieved!")
 
-# --- TAB: DASHBOARD ---
+with col2:
+    st.write("### Learning Activity")
+    # Ek simple graph progress dikhane ke liye
+    st.bar_chart({"XP": [10, 40, 25, st.session_state.xp]})
+st.markdown("</div>", unsafe_allow_html=True)
+
+# --- 5. MAIN NAVIGATION ---
+tabs = st.tabs(["📝 EXPERT QUIZ", "🧠 SRS REVIEW", "📚 WORD VAULT"])
+
+# --- TAB 1: INTERACTIVE QUIZ (Fill in the Blanks & Correction) ---
 with tabs[0]:
-    st.subheader("Your Progress")
-    st.markdown(f"<div class='card'>Words in Vault: {len(st.session_state.vault)}</div>", unsafe_allow_html=True)
-    st.progress(min(st.session_state.xp / 1000, 1.0))
-
-# --- TAB: PRACTICE (SRS logic yahan dikhega) ---
-with tabs[1]:
-    st.subheader("🧠 Smart Review Challenges")
+    st.subheader("⚡ Expert Challenges")
     
-    # Sirf wahi words jo aaj review karne hain
+    # 1. Fill in the Blanks
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.write("**1. Fill in the blank:**")
+    st.write("I have been living here ____ five years.")
+    blank_ans = st.text_input("Type your answer (for/since):", key="blank_1")
+    if st.button("Check Blank"):
+        if blank_ans.lower() == "for":
+            st.session_state.xp += 20
+            st.success("Sahi! Duration ke liye 'for' lagta hai. +20 XP")
+        else:
+            st.error("Galat! Fixed time ke liye 'since' aur duration ke liye 'for' lagta hai.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # 2. Sentence Correction
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.write("**2. Sentence Correction:**")
+    st.write("Incorrect: *'He do not has a car.'*")
+    correct_ans = st.radio("Choose the correct sentence:", [
+        "He does not have a car.",
+        "He do not have a car.",
+        "He does not has a car."
+    ])
+    if st.button("Correct Sentence ✅"):
+        if correct_ans == "He does not have a car.":
+            st.session_state.xp += 30
+            st.success("Excellent! 'Does' ke baad hamesha 'have' lagta hai. +30 XP")
+        else:
+            st.error("Try again! Negative sentences mein 'does not have' use hota hai.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# --- TAB 2: SRS REVIEW ---
+with tabs[1]:
+    st.subheader("🧠 Spaced Repetition Review")
     today = datetime.date.today()
     due_words = [w for w in st.session_state.vault if w['review_date'] <= today]
     
     if not due_words:
-        st.info("Abhi koi word review ke liye nahi hai. Pehle Vault mein word add karein!")
+        st.info("No words due for review. Add more words in the Vault!")
     else:
-        word_data = due_words[0] # Pehla word uthao test ke liye
-        st.markdown(f"<div class='card'>Aapne ye word save kiya tha: <span class='neon-text'>{word_data['word']}</span></div>", unsafe_allow_html=True)
-        
-        user_input = st.text_input("Iska matlab (meaning) kya hai?", key="quiz_input")
-        
-        if st.button("Check Answer ✅"):
-            if user_input.lower() in word_data['meaning'].lower():
-                st.session_state.xp += 30
-                # SRS: Agla review 3 din baad
-                word_data['review_date'] = today + datetime.timedelta(days=3)
-                st.success("Sahi Jawab! +30 XP. Ye word ab 3 din baad dikhega.")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error(f"Galat! Sahi matlab hai: {word_data['meaning']}")
+        for i, word_data in enumerate(due_words):
+            with st.expander(f"Review Word: {word_data['word']}"):
+                st.write(f"What is the meaning?")
+                if st.button("Show Meaning", key=f"show_{i}"):
+                    st.write(f"**Meaning:** {word_data['meaning']}")
+                if st.button("I Remembered This ✅", key=f"rem_{i}"):
+                    st.session_state.xp += 15
+                    word_data['review_date'] = today + datetime.timedelta(days=3)
+                    st.rerun()
 
-# --- TAB: WORD VAULT (Add Words Here) ---
+# --- TAB 3: WORD VAULT ---
 with tabs[2]:
-    st.subheader("Add Knowledge to Vault")
-    with st.form("add_form"):
-        w = st.text_input("New English Word")
-        m = st.text_input("Hindi Meaning / Context")
-        if st.form_submit_button("Lock into Vault 🔒"):
-            if w and m:
-                add_to_vault(w, m)
-                st.success(f"'{w}' save ho gaya! Practice tab mein check karein.")
+    st.subheader("Add New Word")
+    with st.form("add_word_vault"):
+        new_w = st.text_input("Word")
+        new_m = st.text_input("Meaning")
+        if st.form_submit_button("Save Word"):
+            if new_w and new_m:
+                st.session_state.vault.append({
+                    "word": new_w, 
+                    "meaning": new_m, 
+                    "review_date": datetime.date.today()
+                })
+                st.success("Word added to SRS!")
                 st.rerun()
-    
-    st.write("---")
-    st.subheader("Your Collection")
+
     for item in reversed(st.session_state.vault):
-        st.markdown(f"""
-            <div class='card'>
-                <span class='neon-text'>{item['word']}</span> : {item['meaning']}<br>
-                <small>Next Review: {item['review_date']}</small>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='card'>{item['word']} : {item['meaning']}</div>", unsafe_allow_html=True)
+
+# Reset Progress
+if st.sidebar.button("Reset Everything"):
+    st.session_state.clear()
+    st.rerun()
