@@ -1,159 +1,94 @@
 import streamlit as st
-import sqlite3
-from datetime import date
-from streamlit_mic_recorder import mic_recorder
-import google.generativeai as genai
+import random
+import time
 
-# --- 1. AI SETUP ---
-# Aapki Key maine yahan fix kar di hai
-API_KEY = "AIzaSyBWcggAXS3KYXl4LPMi1bWQkYqZUQ3b3c4"
+# --- 1. RESET & INITIALIZE SESSION ---
+# Yeh section app ko crash hone se bachayega
+if 'xp' not in st.session_state: st.session_state.xp = 0
+if 'hp' not in st.session_state: st.session_state.hp = 100
+if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 500
+if 'vault' not in st.session_state: st.session_state.vault = []
+if 'user_page' not in st.session_state: st.session_state.user_page = "🏰 Home Base"
 
-try:
-    genai.configure(api_key=API_KEY)
-    # 404 Error fix karne ke liye hum 'gemini-pro' use kar rahe hain
-    model = genai.GenerativeModel('gemini-pro')
-except Exception as e:
-    model = None
-
-# --- 2. PAGE CONFIG & DESIGN ---
-st.set_page_config(page_title="English Guru Pro", page_icon="🎓", layout="wide")
+# --- 2. THEME & UI ---
+st.set_page_config(page_title="English Guru", layout="wide")
 
 st.markdown("""
     <style>
-    [data-testid="stSidebar"] { background-color: #1E2630; }
-    [data-testid="stSidebar"] * { color: white !important; }
-    .stButton>button { 
-        background-color: #4CAF50; 
-        color: white; 
-        border-radius: 10px; 
-        border: none;
-        padding: 10px;
-        width: 100%;
-    }
-    .stTextInput>div>div>input { border-radius: 10px; }
+    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
+    .stApp { background: #0a0a0a; color: #00f2ff; font-family: 'Rajdhani', sans-serif; }
+    .brand-title { font-family: 'Bungee'; font-size: 3.5rem; text-align: center; color: #ff0055; text-shadow: 0 0 10px #ff0055; }
+    .card { background: #1a1a1a; border: 1px solid #333; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 15px; }
+    .stButton>button { background: #ff0055 !important; color: white !important; font-family: 'Bungee' !important; width: 100%; border-radius: 10px; border:none; height: 45px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. DATABASE SETUP ---
-conn = sqlite3.connect('english_guru.db', check_same_thread=False)
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS progress (date TEXT, xp INTEGER)''')
-c.execute('''CREATE TABLE IF NOT EXISTS dictionary (word TEXT, meaning TEXT)''')
-conn.commit()
-
-# --- 4. FUNCTIONS ---
-def add_xp(amount):
-    today = str(date.today())
-    c.execute("INSERT INTO progress VALUES (?, ?)", (today, amount))
-    conn.commit()
-
-def get_total_xp():
-    c.execute("SELECT SUM(xp) FROM progress")
-    res = c.fetchone()[0]
-    return res if res else 0
-
-# --- 5. SIDEBAR NAVIGATION ---
+# --- 3. SIDEBAR NAVIGATION ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3892/3892258.png", width=80)
-    st.title("English Guru")
-    st.markdown(f"### ⭐ Total XP: {get_total_xp()}")
-    st.divider()
-    menu = st.radio("Menu", ["🏠 Home", "🎙️ Speaking", "✍️ Writing", "🤖 AI Tutor Chat", "🗂️ Dictionary"])
+    st.markdown("<h2 style='color:#ff0055; font-family:Bungee;'>MENU</h2>", unsafe_allow_html=True)
+    page = st.radio("CHOOSE MISSION", ["🏰 Home Base", "👹 Daily Boss", "📚 Word Vault"])
+    st.write("---")
+    if st.button("RESET ALL PROGRESS"):
+        st.session_state.xp = 0
+        st.session_state.hp = 100
+        st.session_state.boss_hp = 500
+        st.session_state.vault = []
+        st.rerun()
 
-# --- 6. MAIN PAGES ---
+st.markdown("<h1 class='brand-title'>ENGLISH GURU</h1>", unsafe_allow_html=True)
 
-# --- HOME PAGE ---
-if menu == "🏠 Home":
-    st.title("🎓 Welcome back, Learner!")
-    st.subheader("Aapka Progress")
-    xp = get_total_xp()
-    st.progress(min(xp / 1000, 1.0))
-    st.write(f"Goal: {xp}/1000 XP tak pahunchna hai!")
-    st.info("💡 Tip: AI Tutor se rozana 5 naye sentence check karwayein.")
+# --- 4. PAGES ---
 
-# --- SPEAKING PRACTICE ---
-elif menu == "🎙️ Speaking":
-    st.title("🎙️ Speaking Practice")
-    target_text = "Practice makes a man perfect."
-    st.info(f"Boliye: **'{target_text}'**")
+if page == "🏰 Home Base":
+    c1, c2 = st.columns(2)
+    with c1: st.markdown(f"<div class='card'><h3>🏆 YOUR XP</h3><h1>{st.session_state.xp}</h1></div>", unsafe_allow_html=True)
+    with c2: st.markdown(f"<div class='card'><h3>❤️ STAMINA</h3><h1>{st.session_state.hp}%</h1></div>", unsafe_allow_html=True)
     
-    audio = mic_recorder(start_prompt="🎤 Start Recording", stop_prompt="🛑 Stop", key='recorder')
-    
-    if audio:
-        if len(audio['bytes']) > 2000:
-            st.audio(audio['bytes'])
-            st.success("Awaaz record ho gayi! Match kijiye.")
-            if st.button("Claim 10 XP"):
-                add_xp(10)
-                st.rerun()
-        else:
-            st.warning("Kuch sunaai nahi diya, fir se boliye.")
+    st.write("### 📈 Recent Progress")
+    # Simple Area Chart
+    st.area_chart({"Level": [10, 20, 15, 40, st.session_state.xp]})
 
-# --- WRITING PRACTICE ---
-elif menu == "✍️ Writing":
-    st.title("✍️ Writing Challenge")
-    st.write("Topic: **'My Best Friend'** (Kam se kam 10 words likhiye)")
-    user_text = st.text_area("Yahan likhiye:", height=150)
-    
-    if st.button("Submit Writing"):
-        if len(user_text.split()) >= 10:
-            st.balloons()
-            st.success("Great job! +20 XP Earned.")
-            add_xp(20)
-        else:
-            st.warning("Thoda aur likhiye points earn karne ke liye.")
-
-# --- AI TUTOR CHAT ---
-elif menu == "🤖 AI Tutor Chat":
-    st.title("🤖 AI Grammar Tutor")
-    st.write("Mujhse English mein baat kijiye, main aapki galtiyan sudharunga.")
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Chat history dikhana
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    if prompt := st.chat_input("Type here (e.g., 'I goes to market')"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        try:
-            with st.spinner("Guru soch raha hai..."):
-                if model:
-                    ai_query = f"You are a helpful English teacher. If the student's sentence is wrong, correct it and explain why in 1-2 simple lines. If it's correct, reply normally. Student said: '{prompt}'"
-                    response = model.generate_content(ai_query)
-                    reply = response.text
-                else:
-                    reply = "Sorry, AI connects nahi ho pa raha. Key check karein."
-
-                with st.chat_message("assistant"):
-                    st.markdown(reply)
-                st.session_state.messages.append({"role": "assistant", "content": reply})
-        except Exception as e:
-            st.error(f"Error: {e}")
-
-# --- DICTIONARY ---
-elif menu == "🗂️ Dictionary":
-    st.title("🗂️ My Word Bank")
+elif page == "👹 Daily Boss":
     col1, col2 = st.columns(2)
     with col1:
-        new_word = st.text_input("Naya Word:")
+        st.write(f"### 👹 BOSS HP: {st.session_state.boss_hp}")
+        st.progress(st.session_state.boss_hp / 500)
     with col2:
-        meaning = st.text_input("Meaning (Hindi/English):")
-    
-    if st.button("Add to Dictionary"):
-        if new_word and meaning:
-            c.execute("INSERT INTO dictionary VALUES (?, ?)", (new_word, meaning))
-            conn.commit()
-            st.success(f"'{new_word}' save ho gaya!")
-            st.rerun()
+        st.write(f"### 🛡️ YOUR HP: {st.session_state.hp}")
+        st.progress(st.session_state.hp / 100)
 
     st.write("---")
-    words = c.execute("SELECT * FROM dictionary").fetchall()
-    for w in words:
-        st.write(f"🔹 **{w[0]}**: {w[1]}")
+    st.markdown("### ⚔️ ATTACK STAGE")
+    q = "Select the correct word: 'Neither of the answers ____ correct.'"
+    ans = st.selectbox(q, ["Choose...", "is", "are"])
 
+    if st.button("💥 FIRE ATTACK"):
+        if ans == "is":
+            dmg = random.randint(70, 150)
+            st.session_state.boss_hp = max(0, st.session_state.boss_hp - dmg)
+            st.session_state.xp += 50
+            st.success(f"CRITICAL HIT! You dealt {dmg} damage!")
+            if st.session_state.boss_hp <= 0:
+                st.balloons()
+                st.session_state.boss_hp = 500
+        elif ans == "Choose...":
+            st.warning("Please select an answer first!")
+        else:
+            st.session_state.hp = max(0, st.session_state.hp - 25)
+            st.error("MISS! The boss hit you for 25 damage!")
+        time.sleep(1)
+        st.rerun()
+
+elif page == "📚 Word Vault":
+    st.write("### 🔒 Save New Vocabulary")
+    w = st.text_input("Word")
+    m = st.text_input("Meaning")
+    if st.button("ADD TO VAULT"):
+        if w and m:
+            st.session_state.vault.append({"word": w, "mean": m})
+            st.success(f"'{w}' saved!")
+    
+    st.write("---")
+    st.write("### 📖 My Collection")
+    for item in st.session_state.vault:
+        st.info(f"**{item['word']}**: {item['mean']}")
