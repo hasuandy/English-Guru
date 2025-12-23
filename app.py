@@ -2,13 +2,12 @@ import streamlit as st
 import random
 import time
 
-# --- 1. SESSION INITIALIZATION ---
-if 'achievements' not in st.session_state or isinstance(st.session_state.achievements, list):
-    st.session_state.achievements = set()
+# --- 1. SYSTEM INITIALIZATION ---
 if 'xp' not in st.session_state: st.session_state.xp = 0
 if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 500
 if 'vault' not in st.session_state: st.session_state.vault = []
 if 'q_index' not in st.session_state: st.session_state.q_index = 0
+if 'achievements' not in st.session_state: st.session_state.achievements = set()
 
 # --- 2. MEGA QUESTION BANK ---
 questions = [
@@ -18,116 +17,103 @@ questions = [
     {"q": "Neither of us ____ ready.", "a": ["is", "are", "am"], "c": "is"},
     {"q": "I have ____ my lunch.", "a": ["eat", "ate", "eaten"], "c": "eaten"},
     {"q": "Choose the correct spelling:", "a": ["Recieve", "Receive", "Receve"], "c": "Receive"},
-    {"q": "The sun ____ in the east.", "a": ["rise", "rises", "rising"], "c": "rises"},
-    {"q": "Look! The baby ____.", "a": ["sleeps", "is sleeping", "sleep"], "c": "is sleeping"},
-    {"q": "This book is ____ than that one.", "a": ["gooder", "better", "best"], "c": "better"},
-    {"q": "He is afraid ____ spiders.", "a": ["of", "from", "with"], "c": "of"}
+    {"q": "Look! The baby ____.", "a": ["sleeps", "is sleeping", "sleep"], "c": "is sleeping"}
 ]
 
-if 'shuffled_questions' not in st.session_state:
-    st.session_state.shuffled_questions = random.sample(questions, len(questions))
-
-# --- 3. ACHIEVEMENT SYNC ---
-def sync_badges():
-    if not isinstance(st.session_state.achievements, set):
-        st.session_state.achievements = set()
-    if len(st.session_state.vault) >= 1: st.session_state.achievements.add("📖 Scholar")
-    if st.session_state.xp >= 200: st.session_state.achievements.add("⚔️ Warrior")
-    if st.session_state.xp >= 500: st.session_state.achievements.add("👑 Master")
-
-sync_badges()
-
-# --- 4. UI STYLING ---
-st.set_page_config(page_title="English Guru V42", layout="wide")
+# --- 3. STYLING (The "Pro" Gaming Look) ---
+st.set_page_config(page_title="English Guru V43", layout="wide")
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
-    .stApp { background: #050505; color: #00f2ff; font-family: 'Rajdhani', sans-serif; }
-    .main-title { font-family: 'Bungee'; font-size: 3.5rem; text-align: center; color: #ff0055; text-shadow: 0 0 15px #ff0055; }
-    .stat-card {
-        background: rgba(255, 255, 255, 0.05); border: 2px solid #ff0055;
-        border-radius: 15px; padding: 25px; text-align: center; margin-bottom: 20px;
+    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Share+Tech+Mono&display=swap');
+    
+    .stApp { background-color: #0d0d0d; color: #00ff41; font-family: 'Share Tech Mono', monospace; }
+    
+    .terminal-box {
+        border: 2px solid #00ff41;
+        padding: 20px;
+        border-radius: 5px;
+        background: rgba(0, 255, 65, 0.05);
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        margin-bottom: 20px;
     }
-    .badge-card {
-        background: rgba(255, 215, 0, 0.2); border: 1px solid #ffd700;
-        border-radius: 10px; padding: 10px; margin-bottom: 5px;
-        text-align: center; font-family: 'Bungee'; color: gold;
+    
+    .main-title {
+        font-family: 'Bungee';
+        font-size: 4rem;
+        text-align: center;
+        color: #00ff41;
+        text-shadow: 2px 2px #ff0055;
     }
+    
+    .stat-label { color: #ff0055; font-family: 'Bungee'; font-size: 1.2rem; }
+    .stat-value { color: #00ff41; font-size: 2.5rem; font-weight: bold; }
+    
+    /* Hide Streamlit elements for cleaner look */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. SIDEBAR ---
-with st.sidebar:
-    st.markdown("<h2 style='font-family:Bungee; color:#ff0055;'>WARRIOR HUB</h2>", unsafe_allow_html=True)
-    st.metric("TOTAL XP", st.session_state.xp)
-    st.write("---")
-    st.markdown("### 🏅 ACHIEVEMENTS")
-    for a in st.session_state.achievements:
-        st.markdown(f"<div class='badge-card'>{a}</div>", unsafe_allow_html=True)
-    
-    st.write("---")
-    if st.button("🔴 RESET ALL PROGRESS"):
-        st.session_state.clear()
-        st.rerun()
-
-# --- 6. MAIN CONTENT ---
+# --- 4. HEADER & STATS ---
 st.markdown("<h1 class='main-title'>ENGLISH GURU</h1>", unsafe_allow_html=True)
-tab1, tab2, tab3 = st.tabs(["🏰 DASHBOARD", "👹 BOSS ARENA", "📚 WORD VAULT"])
 
-with tab1:
-    st.markdown("<div class='stat-card'>", unsafe_allow_html=True)
-    st.subheader("🔥 Current Standing")
-    rank = "TRAINEE"
-    if st.session_state.xp >= 500: rank = "MASTER"
-    elif st.session_state.xp >= 200: rank = "WARRIOR"
-    
-    col1, col2 = st.columns(2)
-    col1.metric("YOUR RANK", rank)
-    col2.metric("XP EARNED", st.session_state.xp)
-    
-    st.write("---")
-    st.write(f"📖 Words Collected in Vault: **{len(st.session_state.vault)}**")
-    st.markdown("</div>", unsafe_allow_html=True)
+# Top Bar Stats
+c1, c2, c3, c4 = st.columns(4)
+with c1: st.markdown(f"<div class='terminal-box'><span class='stat-label'>XP</span><br><span class='stat-value'>{st.session_state.xp}</span></div>", unsafe_allow_html=True)
+with c2: 
+    rank = "NOOB" if st.session_state.xp < 200 else "PRO" if st.session_state.xp < 500 else "LEGEND"
+    st.markdown(f"<div class='terminal-box'><span class='stat-label'>RANK</span><br><span class='stat-value'>{rank}</span></div>", unsafe_allow_html=True)
+with c3: st.markdown(f"<div class='terminal-box'><span class='stat-label'>WORDS</span><br><span class='stat-value'>{len(st.session_state.vault)}</span></div>", unsafe_allow_html=True)
+with c4: st.markdown(f"<div class='terminal-box'><span class='stat-label'>BOSS HP</span><br><span class='stat-value'>{st.session_state.boss_hp}</span></div>", unsafe_allow_html=True)
 
-with tab2:
-    st.write(f"### 👹 BOSS HP: {st.session_state.boss_hp} / 500")
-    st.progress(max(st.session_state.boss_hp / 500, 0.0))
+# --- 5. BATTLE & VAULT SIDE-BY-SIDE ---
+left_col, right_col = st.columns([2, 1])
+
+with left_col:
+    st.markdown("<div class='terminal-box'>", unsafe_allow_html=True)
+    st.subheader("👹 ACTIVE MISSION: BOSS BATTLE")
     
-    # Get current question
-    q_idx = st.session_state.q_index % len(st.session_state.shuffled_questions)
-    curr_q = st.session_state.shuffled_questions[q_idx]
+    q_data = questions[st.session_state.q_index % len(questions)]
+    st.write(f"### > {q_data['q']}")
+    ans = st.radio("SELECT WEAPON:", q_data['a'], key="battle_radio")
     
-    st.markdown(f"#### MISSION {st.session_state.q_index + 1}:")
-    st.info(f"**{curr_q['q']}**")
-    ans = st.radio("Choose your weapon:", curr_q['a'], key=f"q_{st.session_state.q_index}")
-    
-    if st.button("💥 ATTACK BOSS"):
-        if ans == curr_q['c']:
+    if st.button("EXECUTE ATTACK 💥"):
+        if ans == q_data['c']:
             st.session_state.xp += 50
             st.session_state.boss_hp -= 100
-            st.success("✅ CRITICAL HIT! -100 Boss HP | +50 XP")
+            st.success("SUCCESS: 100 DMG DEALT")
             if st.session_state.boss_hp <= 0:
                 st.balloons()
                 st.session_state.boss_hp = 500
         else:
-            st.error(f"❌ MISSED! Correct answer was: {curr_q['c']}")
+            st.error("ERROR: ATTACK FAILED")
         
         st.session_state.q_index += 1
-        sync_badges()
-        time.sleep(1)
+        time.sleep(0.5)
         st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
-with tab3:
-    st.header("Word Vault")
-    w = st.text_input("New Intel (Word)")
-    m = st.text_input("Meaning")
-    if st.button("🔒 SEAL WORD"):
+with right_col:
+    st.markdown("<div class='terminal-box'>", unsafe_allow_html=True)
+    st.subheader("📚 WORD VAULT")
+    w = st.text_input("INPUT WORD:")
+    m = st.text_input("INPUT MEANING:")
+    if st.button("ENCRYPT & SAVE"):
         if w and m:
             st.session_state.vault.append({"w": w, "m": m})
-            sync_badges()
-            st.success("Knowledge Secured!")
+            st.success("SAVED")
             st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
     
-    st.write("---")
-    for item in st.session_state.vault:
-        st.write(f"🔹 **{item['w']}**: {item['m']}")
+    # Achievements Section
+    st.markdown("<div class='terminal-box'>", unsafe_allow_html=True)
+    st.subheader("🏅 BADGES")
+    if len(st.session_state.vault) >= 1: st.write("✅ SCHOLAR")
+    if st.session_state.xp >= 200: st.write("✅ WARRIOR")
+    if st.session_state.xp >= 500: st.write("✅ MASTER")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# Footer Reset
+if st.button("RESET SYSTEM"):
+    st.session_state.clear()
+    st.rerun()
