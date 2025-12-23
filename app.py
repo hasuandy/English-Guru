@@ -1,5 +1,5 @@
 import streamlit as st
-import random
+import pandas as pd
 import time
 
 # --- 1. SESSION INITIALIZATION ---
@@ -8,118 +8,98 @@ if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 500
 if 'vault' not in st.session_state: st.session_state.vault = []
 if 'q_idx' not in st.session_state: st.session_state.q_idx = 0
 
-# --- 2. QUESTIONS DATA ---
+# --- 2. QUESTIONS ---
 questions = [
-    {"q": "He ____ to the market yesterday.", "a": ["go", "goes", "went"], "c": "went"},
-    {"q": "This is ____ apple.", "a": ["a", "an", "the"], "c": "an"},
-    {"q": "Dogs ____ barking loudly.", "a": ["is", "am", "are"], "c": "are"},
-    {"q": "Opposite of 'Hot' is:", "a": ["Ice", "Cold", "Warm"], "c": "Cold"}
+    {"q": "Choose the correct: 'She ____ English.'", "a": ["speak", "speaks", "speaking"], "c": "speaks"},
+    {"q": "Past tense of 'Go' is:", "a": ["Goes", "Went", "Gone"], "c": "Went"},
+    {"q": "I ____ a student.", "a": ["am", "is", "are"], "c": "am"},
+    {"q": "They ____ playing.", "a": ["is", "am", "are"], "c": "are"}
 ]
 
-# --- 3. CLEAN UI STYLING ---
-st.set_page_config(page_title="English Guru", layout="wide")
+# --- 3. UI STYLING ---
+st.set_page_config(page_title="English Guru Pro", layout="wide")
 
 st.markdown("""
     <style>
-    /* Modern Light Theme */
-    .stApp { background-color: #F0F2F6; color: #1E1E2F; }
-    
-    /* Sidebar Styling */
-    [data-testid="stSidebar"] { background-color: #6c5ce7; }
-    [data-testid="stSidebar"] * { color: white !important; }
-
-    /* Custom Card Style */
-    .word-card {
-        background: white; padding: 15px; border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 10px;
-        border-left: 5px solid #6c5ce7;
-    }
-    
-    .stButton>button {
-        background: #6c5ce7 !important; color: white !important;
-        border-radius: 8px !important; font-weight: bold; border: none;
-    }
+    .main { background-color: #f0f2f6; }
+    .stMetric { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .stButton>button { width: 100%; border-radius: 20px; font-weight: bold; }
+    h1 { color: #4B39EF; font-family: 'Segoe UI', sans-serif; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. SIDEBAR MENU ---
+# --- 4. SIDEBAR ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3426/3426653.png", width=80)
-    st.title("GURU MENU")
-    page = st.selectbox("GO TO:", ["🏠 Dashboard", "⚔️ Battle Arena", "📚 My Word Vault", "🏅 Badges"])
+    st.title("🛡️ English Guru")
+    menu = st.radio("Navigation", ["Dashboard", "Battle Arena", "Word Vault"])
     st.write("---")
-    st.metric("Your XP", st.session_state.xp)
-    st.metric("Boss HP", st.session_state.boss_hp)
+    if st.button("Reset Game"):
+        st.session_state.clear()
+        st.rerun()
 
 # --- 5. PAGES ---
 
-if page == "🏠 Dashboard":
-    st.title("Welcome back, Warrior! 🏆")
-    st.write("Aapne ab tak **{}** words seekhe hain.".format(len(st.session_state.vault)))
-    st.info("Battle Arena mein jao aur Boss ko hara kar XP kamao!")
+if menu == "Dashboard":
+    st.title("🚀 Hero Dashboard")
     
-    # Quick Stats
-    c1, c2 = st.columns(2)
-    with c1: st.success(f"Current Rank: {'Expert' if st.session_state.xp > 200 else 'Beginner'}")
-    with c2: st.warning(f"Words in Vault: {len(st.session_state.vault)}")
+    # Hero Stats Row
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Current XP", f"{st.session_state.xp} pts")
+    c2.metric("Boss Health", f"{st.session_state.boss_hp} HP", delta="-100" if st.session_state.xp > 0 else "0")
+    c3.metric("Words Learned", f"{len(st.session_state.vault)}")
 
-elif page == "⚔️ Battle Arena":
-    st.title("👹 Fight the Grammar Boss")
+    st.write("---")
+    st.subheader("🏅 Your Badges")
+    cols = st.columns(4)
+    if len(st.session_state.vault) >= 1: cols[0].success("📖 Scholar")
+    if st.session_state.xp >= 200: cols[1].success("⚔️ Warrior")
+    if st.session_state.xp >= 500: cols[2].success("👑 Master")
+    if not st.session_state.vault: st.info("Start learning to unlock badges!")
+
+elif menu == "Battle Arena":
+    st.title("👹 Grammar Battle")
     st.progress(st.session_state.boss_hp / 500)
     
     q = questions[st.session_state.q_idx % len(questions)]
-    st.markdown(f"### Q: {q['q']}")
-    ans = st.radio("Choose correct answer:", q['a'], key=f"q_{st.session_state.q_idx}")
-    
-    if st.button("🔥 RELEASE ATTACK"):
-        if ans == q['c']:
-            st.session_state.xp += 50
-            st.session_state.boss_hp -= 100
-            st.success("Correct! Boss took 100 DMG!")
-            if st.session_state.boss_hp <= 0:
-                st.balloons()
-                st.session_state.boss_hp = 500
-        else:
-            st.error("Oops! Wrong grammar. Correct: " + q['c'])
-        
-        st.session_state.q_idx += 1
-        time.sleep(1)
-        st.rerun()
-
-elif page == "📚 My Word Vault":
-    st.title("📖 Your Personal Dictionary")
-    
-    # Word Input
     with st.container():
-        c1, c2 = st.columns(2)
-        new_w = c1.text_input("New Word")
-        new_m = c2.text_input("Meaning")
-        if st.button("Save to Vault"):
-            if new_w and new_m:
-                st.session_state.vault.append({"w": new_w, "m": new_m})
-                st.success("Word Saved!")
+        st.markdown(f"### MISSION: {q['q']}")
+        ans = st.radio("Select Weapon:", q['a'], key=f"battle_{st.session_state.q_idx}")
+        
+        if st.button("STRIKE! 💥"):
+            if ans == q['c']:
+                st.session_state.xp += 50
+                st.session_state.boss_hp -= 100
+                st.success("Correct Answer! Damage Dealt!")
+                if st.session_state.boss_hp <= 0:
+                    st.balloons()
+                    st.session_state.boss_hp = 500
+            else:
+                st.error(f"Wrong! The correct answer was: {q['c']}")
+            
+            st.session_state.q_idx += 1
+            time.sleep(1)
+            st.rerun()
+
+elif menu == "Word Vault":
+    st.title("📖 Intel Vault (Words)")
+    
+    # Add Word Section
+    with st.expander("➕ Add New Discovery", expanded=True):
+        col1, col2 = st.columns(2)
+        w = col1.text_input("New Word")
+        m = col2.text_input("Meaning")
+        if st.button("Lock Intel"):
+            if w and m:
+                st.session_state.vault.append({"Word": w, "Meaning": m})
+                st.success("Word Encrypted into Vault!")
                 st.rerun()
 
     st.write("---")
-    st.subheader("Your Saved Knowledge:")
     
-    # YAHAN AB WORDS DIKHENGE SAHI SE
-    if not st.session_state.vault:
-        st.write("Vault khali hai. Kuch naya add karo!")
+    # Display Section
+    if st.session_state.vault:
+        # Converting to DataFrame for a clean table look
+        df = pd.DataFrame(st.session_state.vault)
+        st.table(df) # Isse saare words ek saath saaf dikhenge
     else:
-        # Table format for better visibility
-        for item in reversed(st.session_state.vault):
-            st.markdown(f"""
-                <div class='word-card'>
-                    <b style='color:#6c5ce7; font-size:1.2rem;'>{item['w']}</b> : {item['m']}
-                </div>
-            """, unsafe_allow_html=True)
-
-elif page == "🏅 Badges":
-    st.title("🏅 Achievements")
-    if len(st.session_state.vault) >= 1:
-        st.success("📖 Scholar: You saved your first word!")
-    if st.session_state.xp >= 200:
-        st.success("⚔️ Warrior: You crossed 200 XP!")
-    if not st.session_state.vault and st.session_state.xp < 200:
-        st.write("Abhi koi badge nahi mila. Kaam shuru karo!")
+        st.info("Vault is empty. Go find some words!")
