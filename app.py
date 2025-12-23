@@ -2,112 +2,114 @@ import streamlit as st
 import datetime
 import time
 
-# --- 1. INITIALIZATION ---
+# --- 1. SESSION STATE ---
 if 'xp' not in st.session_state: st.session_state.xp = 0
 if 'vault' not in st.session_state: st.session_state.vault = []
-if 'quiz_step' not in st.session_state: st.session_state.quiz_step = 1
 
-# --- 2. THEME & STYLING (Extra Contrast) ---
+# --- 2. THEME & STYLING (Sabse Sharp Contrast) ---
 st.set_page_config(page_title="English Guru Pro", layout="wide")
+
 st.markdown("""
     <style>
     .stApp { background-color: #000000; color: #ffffff; }
     
-    /* Neon Boxes for High Visibility */
-    .quiz-box { 
-        background-color: #0d0d0d; border: 3px solid #00ffcc; 
-        padding: 25px; border-radius: 20px; margin-bottom: 25px; 
-        box-shadow: 0 0 15px #00ffcc;
+    /* Neon Boxes for each Task */
+    .task-container { 
+        background-color: #111111; 
+        border: 3px solid #00ffcc; 
+        padding: 25px; 
+        border-radius: 15px; 
+        margin-top: 20px;
     }
     
-    .instruction-text { color: #ffcc00; font-size: 20px; font-weight: bold; margin-bottom: 10px; }
-    .neon-label { color: #00ffcc; font-weight: bold; font-size: 24px; }
-    
-    /* Buttons */
+    /* Buttons Visibility */
     .stButton>button { 
-        background: #00ffcc !important; color: #000 !important; 
-        font-weight: 900 !important; height: 55px; border-radius: 12px;
+        background: #00ffcc !important; 
+        color: #000 !important; 
+        font-weight: bold !important;
+        font-size: 18px !important;
+        height: 50px;
+        border-radius: 10px;
     }
     
-    /* Input Fields Visibility */
+    /* Input Boxes (Typing) */
     input { 
-        background-color: #1a1a1a !important; color: #00ffcc !important; 
-        border: 2px solid #00ffcc !important; font-size: 20px !important;
+        background-color: #222 !important; 
+        color: #00ffcc !important; 
+        border: 2px solid #ffffff !important;
+        font-size: 20px !important;
     }
+
+    /* Tab Text Color */
+    .stTabs [data-baseweb="tab"] { color: #ffffff !important; font-size: 20px !important; }
+    .stTabs [aria-selected="true"] { color: #00ffcc !important; border-bottom-color: #00ffcc !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. TOP DASHBOARD ---
-st.markdown("<h1 style='text-align:center; color:#00ffcc;'>🌟 INTERACTIVE LEARNING HUB</h1>", unsafe_allow_html=True)
-c1, c2 = st.columns(2)
-c1.metric("🏆 TOTAL XP", st.session_state.xp)
-c2.metric("📖 WORDS SAVED", len(st.session_state.vault))
-st.write("---")
+# --- 3. HEADER ---
+st.markdown("<h1 style='text-align:center; color:#00ffcc;'>🛡️ ENGLISH GURU PRO</h1>", unsafe_allow_html=True)
+st.markdown(f"<h3 style='text-align:center;'>Current XP: {st.session_state.xp}</h3>", unsafe_allow_html=True)
 
-# --- 4. NAVIGATION ---
-tabs = st.tabs(["⚡ ACTIVE QUIZ", "📚 WORD VAULT", "📊 PROGRESS"])
+# --- 4. TABS SYSTEM ---
+tab1, tab2, tab3 = st.tabs(["📝 ACTIVE QUIZ", "📚 WORD VAULT", "📊 PROGRESS"])
 
-# --- TAB 1: INTERACTIVE QUIZ (Fill in Blanks & Correction) ---
-with tabs[0]:
-    st.markdown("<p class='instruction-text'>Niche diye gaye sawalon ko dhyan se padhein aur solve karein:</p>", unsafe_allow_html=True)
-
-    # --- SECTION A: FILL IN THE BLANK (TYPING) ---
-    st.markdown("<div class='quiz-box'>", unsafe_allow_html=True)
-    st.markdown("<p class='neon-label'>Task 1: Fill in the Blank (Type Karo)</p>", unsafe_allow_html=True)
-    st.write("### Question: 'She has been working here ____ 2018.'")
+# --- TAB 1: INTERACTIVE QUIZ (Sabse Main Section) ---
+with tab1:
+    st.markdown("### ⚡ Challenges Unlock")
     
-    # Typing box for user
-    user_typed = st.text_input("Apna jawab yahan type karein (since / for):", placeholder="Type here...", key="fill_type_box")
+    # Task 1: Typing Wala
+    st.markdown("<div class='task-container'>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#00ffcc;'>1. Typing Challenge (Fill in the Blank)</h2>", unsafe_allow_html=True)
+    st.write("Question: **'I am ____ (go) to the market now.'**")
     
-    if st.button("Jawab Check Karein 🔍"):
-        if user_typed.lower().strip() == "since":
+    user_type = st.text_input("Yahan sahi form type karein (go/went/going):", key="t_box")
+    
+    if st.button("Check Typing Answer 🔍"):
+        if user_type.lower().strip() == "going":
             st.session_state.xp += 50
-            st.success("Correct! 'Since' is used for a fixed point in time. +50 XP")
+            st.success("Sahi Jawab! +50 XP")
             time.sleep(1)
             st.rerun()
         else:
-            st.error("Incorrect! Correct answer is 'since' because 2018 is a fixed year.")
+            st.error("Galat! 'Am' ke saath 'ing' lagta hai.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- SECTION B: SENTENCE CORRECTION (RADIO BUTTONS) ---
-    st.markdown("<div class='quiz-box'>", unsafe_allow_html=True)
-    st.markdown("<p class='neon-label'>Task 2: Sentence Correction (Option Chuno)</p>", unsafe_allow_html=True)
-    st.write("### Choose the grammatically correct sentence:")
+    # Task 2: Radio Button Wala
+    st.markdown("<div class='task-container'>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#00ffcc;'>2. Selection Challenge (Sentence Correction)</h2>", unsafe_allow_html=True)
+    st.write("Choose the correct sentence:")
     
-    # Radio buttons for selection
-    options = [
-        "He don't has any money.",
-        "He doesn't has any money.",
-        "He doesn't have any money."
-    ]
-    user_choice = st.radio("Sahi option par click karein:", options, key="radio_correction_box")
+    selection = st.radio("Pick one:", [
+        "Neither of them are here.",
+        "Neither of them is here.",
+        "Neither of them been here."
+    ], key="r_box")
     
-    if st.button("Option Submit Karein ✅"):
-        if user_choice == "He doesn't have any money.":
+    if st.button("Submit Selection ✅"):
+        if selection == "Neither of them is here.":
             st.session_state.xp += 50
-            st.success("Perfect! 'Does' ke saath hamesha base form 'have' lagta hai. +50 XP")
+            st.success("Correct! 'Neither' singular hota hai. +50 XP")
             time.sleep(1)
             st.rerun()
         else:
-            st.error("Wrong! Focus on 'Does' + 'Have' rule.")
+            st.error("Galat! Grammar check karein.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- TAB 2: WORD VAULT ---
-with tabs[1]:
-    st.subheader("Add Vocabulary with Context")
+with tab2:
+    st.subheader("Vocabulary Storage")
     with st.form("vault_form"):
         w = st.text_input("Word")
         m = st.text_input("Meaning")
-        if st.form_submit_button("Vault mein Save karein"):
+        if st.form_submit_button("Save Word"):
             if w and m:
-                st.session_state.vault.append({"word": w, "meaning": m})
-                st.success("Word saved!")
+                st.session_state.vault.append(f"{w} : {m}")
                 st.rerun()
     
     for item in reversed(st.session_state.vault):
-        st.markdown(f"<div class='quiz-box'><b>{item['word']}</b> : {item['meaning']}</div>", unsafe_allow_html=True)
+        st.info(item)
 
 # --- TAB 3: PROGRESS ---
-with tabs[2]:
-    st.subheader("Your Growth Chart")
-    st.bar_chart({"XP Progress": [10, 30, 70, st.session_state.xp]})
+with tab3:
+    st.subheader("Your XP Growth")
+    st.bar_chart({"XP": [10, 40, 60, st.session_state.xp]})
