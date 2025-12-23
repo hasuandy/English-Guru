@@ -11,24 +11,28 @@ if 'vault' not in st.session_state: st.session_state.vault = []
 if 'player_name' not in st.session_state: st.session_state.player_name = "Warrior"
 if 'last_login' not in st.session_state: st.session_state.last_login = None
 if 'streak' not in st.session_state: st.session_state.streak = 0
+if 'achievements' not in st.session_state: st.session_state.achievements = []
 
-# Multiplayer Simulated Feed
-if 'global_feed' not in st.session_state:
-    st.session_state.global_feed = [
-        "🛡️ ShadowHunter dealt 120 DMG to Boss!",
-        "💎 CyberGamer reached Level 5!",
-        "⚔️ DragonSlayer joined the Arena!"
-    ]
+# --- 2. ACHIEVEMENT LOGIC ---
+def check_achievements():
+    new_badge = False
+    # 1. First Word Badge
+    if len(st.session_state.vault) >= 1 and "📖 Scholar" not in st.session_state.achievements:
+        st.session_state.achievements.append("📖 Scholar")
+        new_badge = True
+    # 2. XP Milestone
+    if st.session_state.xp >= 500 and "⚔️ Veteran" not in st.session_state.achievements:
+        st.session_state.achievements.append("⚔️ Veteran")
+        new_badge = True
+    # 3. Boss Slayer (Hypothetical)
+    if st.session_state.xp >= 1000 and "👑 Titan Slayer" not in st.session_state.achievements:
+        st.session_state.achievements.append("👑 Titan Slayer")
+        new_badge = True
+    
+    if new_badge:
+        st.toast("🌟 NEW ACHIEVEMENT UNLOCKED!")
 
-# --- 2. DAILY LOGIN LOGIC ---
-today = str(date.today())
-if st.session_state.last_login != today:
-    # Bonus logic
-    st.session_state.streak += 1
-    bonus_xp = st.session_state.streak * 50
-    st.session_state.xp += bonus_xp
-    st.session_state.last_login = today
-    st.toast(f"🎁 Daily Bonus: +{bonus_xp} XP! Streak: {st.session_state.streak} Days")
+check_achievements()
 
 # --- 3. RANK CALCULATOR ---
 def get_rank(xp):
@@ -40,7 +44,7 @@ def get_rank(xp):
 rank_name, rank_color = get_rank(st.session_state.xp)
 
 # --- 4. UI STYLING ---
-st.set_page_config(page_title="English Guru V36", layout="wide")
+st.set_page_config(page_title="English Guru V37", layout="wide")
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
@@ -50,11 +54,14 @@ st.markdown(f"""
         background: linear-gradient(90deg, #ff0055, {rank_color});
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }}
-    .reward-card {{
-        background: linear-gradient(45deg, rgba(255,0,85,0.1), rgba(0,242,255,0.1));
-        border: 2px solid {rank_color}; border-radius: 15px; padding: 20px; text-align: center;
+    .achievement-card {{
+        background: rgba(255, 215, 0, 0.1); border: 1px solid #ffd700;
+        border-radius: 10px; padding: 10px; display: inline-block; margin: 5px;
     }}
-    .feed-item {{ border-left: 3px solid {rank_color}; padding-left: 10px; margin-bottom: 5px; color: #00f2ff; font-size: 0.85rem; }}
+    .stat-card {{
+        background: rgba(255, 255, 255, 0.05); border-left: 5px solid {rank_color};
+        padding: 20px; border-radius: 10px;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -63,10 +70,9 @@ with st.sidebar:
     st.markdown(f"<h2 style='color:{rank_color}; font-family:Bungee;'>{st.session_state.player_name}</h2>", unsafe_allow_html=True)
     page = st.selectbox("MISSION SELECT", ["🏰 Home Base", "👹 Boss Arena", "🏆 Leaderboard", "📚 Word Vault"])
     st.write("---")
-    st.markdown(f"🔥 **Streak:** {st.session_state.streak} Days")
-    if st.button("RESET DATA"):
-        st.session_state.clear()
-        st.rerun()
+    st.write("### 🏅 Achievements")
+    for badge in st.session_state.achievements:
+        st.markdown(f"<div class='achievement-card'>{badge}</div>", unsafe_allow_html=True)
 
 st.markdown("<h1 class='brand-title'>ENGLISH GURU</h1>", unsafe_allow_html=True)
 
@@ -75,53 +81,45 @@ st.markdown("<h1 class='brand-title'>ENGLISH GURU</h1>", unsafe_allow_html=True)
 if page == "🏰 Home Base":
     c1, c2 = st.columns([2, 1])
     with c1:
-        st.markdown(f"<div class='reward-card'><h2>Welcome back, {st.session_state.player_name}!</h2><p>Current Rank: {rank_name}</p></div>", unsafe_allow_html=True)
-        st.write("### 📈 Your XP Journey")
-        st.area_chart({"XP": [10, 50, 30, 80, st.session_state.xp]})
+        st.markdown(f"<div class='stat-card'><h2>Rank: {rank_name}</h2><h3>Total XP: {st.session_state.xp}</h3></div>", unsafe_allow_html=True)
+        st.write("### 📊 Power Evolution")
+        st.line_chart({"Level": [5, 15, 10, 25, st.session_state.xp]})
     
     with c2:
-        st.write("### 🌐 Global Feed")
-        for msg in st.session_state.global_feed[-8:]:
-            st.markdown(f"<div class='feed-item'>{msg}</div>", unsafe_allow_html=True)
+        st.write("### 🏆 UNLOCKED BADGES")
+        if not st.session_state.achievements:
+            st.write("No badges yet. Start training!")
+        for badge in st.session_state.achievements:
+            st.success(badge)
 
 elif page == "👹 Boss Arena":
-    st.write(f"### 👹 World Boss: GRAMMAR TITAN")
+    st.write("### 👹 BOSS FIGHT")
     st.progress(st.session_state.boss_hp / 500)
     
-    q = "Battle Task: Choose the correct preposition - 'She is interested ____ music.'"
-    ans = st.radio(q, ["at", "in", "on"])
+    q = "Select the correct sentence: 'Each of the students ____ (has/have) a book.'"
+    ans = st.radio(q, ["has", "have"])
     
-    if st.button("💥 CO-OP STRIKE"):
-        if ans == "in":
-            dmg = random.randint(120, 220)
+    if st.button("💥 STRIKE"):
+        if ans == "has":
+            dmg = random.randint(150, 250)
             st.session_state.boss_hp = max(0, st.session_state.boss_hp - dmg)
-            st.session_state.xp += 60
-            st.session_state.global_feed.append(f"⚔️ {st.session_state.player_name} hit for {dmg} DMG!")
-            st.success(f"CRITICAL! {dmg} DMG dealt!")
+            st.session_state.xp += 70
+            st.success(f"CRITICAL HIT! {dmg} Damage!")
             if st.session_state.boss_hp <= 0:
                 st.balloons(); st.session_state.boss_hp = 500
         else:
-            st.error("MISS! The Titan counter-attacks!")
+            st.error("MISS! The Titan struck back.")
         time.sleep(1); st.rerun()
 
-elif page == "🏆 Leaderboard":
-    st.write("### 🏆 Global Hall of Fame")
-    # Simulated multiplayer ranks
-    players = [
-        {"n": "ShadowHunter", "x": 3200, "s": "Online 🟢"},
-        {"n": st.session_state.player_name, "x": st.session_state.xp, "s": "You 🛡️"},
-        {"n": "CyberGamer", "x": 800, "s": "Online 🟢"},
-        {"n": "NoobMaster", "x": 150, "s": "Offline 🔴"}
-    ]
-    for p in sorted(players, key=lambda x: x['x'], reverse=True):
-        st.markdown(f"**{p['n']}** — {p['x']} XP | `{p['s']}`")
-
 elif page == "📚 Word Vault":
-    st.write("### 📖 Word Vault")
-    w = st.text_input("Word")
+    w = st.text_input("New Word")
     m = st.text_input("Meaning")
-    if st.button("Save"):
-        st.session_state.vault.append({"w": w, "m": m})
-        st.success("Knowledge Stored!")
+    if st.button("Save to Vault"):
+        if w and m:
+            st.session_state.vault.append({"w": w, "m": m})
+            st.success("Knowledge Saved!")
+            st.rerun()
+
+    st.write("---")
     for item in st.session_state.vault:
         st.info(f"**{item['w']}**: {item['m']}")
