@@ -156,3 +156,4 @@ elif menu == "🗂️ Dictionary":
     words = c.execute("SELECT * FROM dictionary").fetchall()
     for w in words:
         st.write(f"🔹 **{w[0]}**: {w[1]}")
+
