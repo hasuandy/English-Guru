@@ -21,7 +21,7 @@ if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'playback_speed' not in st.session_state: st.session_state.playback_speed = 1.0
 
 # --- 3. ULTRA GAMER CSS (CYBERPUNK THEME) ---
-st.set_page_config(page_title="Cyber Guru Academy", page_icon="🌐", layout="wide")
+st.set_page_config(page_title="English Guru Arena", page_icon="🌐", layout="wide")
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
@@ -169,3 +169,4 @@ else:
         summary = st.text_area("Write a 2-line summary:")
         if st.button("SUBMIT FOR EVALUATION"):
             st.success("Submission received! XP rewarded for journaling."); add_xp(25, "Writing")
+
