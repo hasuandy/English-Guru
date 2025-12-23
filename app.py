@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 import time
+from datetime import date
 
 # --- 1. SESSION STATE (The Brain) ---
 if 'xp' not in st.session_state: st.session_state.xp = 0
@@ -8,8 +9,10 @@ if 'hp' not in st.session_state: st.session_state.hp = 100
 if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 500
 if 'vault' not in st.session_state: st.session_state.vault = []
 if 'player_name' not in st.session_state: st.session_state.player_name = "Warrior"
+if 'last_login' not in st.session_state: st.session_state.last_login = None
+if 'streak' not in st.session_state: st.session_state.streak = 0
 
-# Dummy Data for Multiplayer Feel
+# Multiplayer Simulated Feed
 if 'global_feed' not in st.session_state:
     st.session_state.global_feed = [
         "🛡️ ShadowHunter dealt 120 DMG to Boss!",
@@ -17,7 +20,17 @@ if 'global_feed' not in st.session_state:
         "⚔️ DragonSlayer joined the Arena!"
     ]
 
-# --- 2. RANK CALCULATOR ---
+# --- 2. DAILY LOGIN LOGIC ---
+today = str(date.today())
+if st.session_state.last_login != today:
+    # Bonus logic
+    st.session_state.streak += 1
+    bonus_xp = st.session_state.streak * 50
+    st.session_state.xp += bonus_xp
+    st.session_state.last_login = today
+    st.toast(f"🎁 Daily Bonus: +{bonus_xp} XP! Streak: {st.session_state.streak} Days")
+
+# --- 3. RANK CALCULATOR ---
 def get_rank(xp):
     if xp < 200: return "🟢 TRAINEE", "#00ff00"
     elif xp < 500: return "🔵 ELITE WARRIOR", "#00f2ff"
@@ -26,8 +39,8 @@ def get_rank(xp):
 
 rank_name, rank_color = get_rank(st.session_state.xp)
 
-# --- 3. UI STYLING ---
-st.set_page_config(page_title="English Guru V35 - Multiplayer", layout="wide")
+# --- 4. UI STYLING ---
+st.set_page_config(page_title="English Guru V36", layout="wide")
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
@@ -37,83 +50,78 @@ st.markdown(f"""
         background: linear-gradient(90deg, #ff0055, {rank_color});
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }}
-    .multiplayer-box {{
-        background: rgba(0, 242, 255, 0.05); border: 1px solid #00f2ff;
-        border-radius: 10px; padding: 15px; margin-top: 10px;
+    .reward-card {{
+        background: linear-gradient(45deg, rgba(255,0,85,0.1), rgba(0,242,255,0.1));
+        border: 2px solid {rank_color}; border-radius: 15px; padding: 20px; text-align: center;
     }}
-    .feed-text {{ color: #00f2ff; font-size: 0.9rem; font-family: 'Courier New'; }}
+    .feed-item {{ border-left: 3px solid {rank_color}; padding-left: 10px; margin-bottom: 5px; color: #00f2ff; font-size: 0.85rem; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. NAVIGATION ---
+# --- 5. NAVIGATION ---
 with st.sidebar:
     st.markdown(f"<h2 style='color:{rank_color}; font-family:Bungee;'>{st.session_state.player_name}</h2>", unsafe_allow_html=True)
     page = st.selectbox("MISSION SELECT", ["🏰 Home Base", "👹 Boss Arena", "🏆 Leaderboard", "📚 Word Vault"])
-    
-    # Custom Name Feature
-    new_name = st.text_input("Change Hero Name", st.session_state.player_name)
-    if st.button("Update ID"):
-        st.session_state.player_name = new_name
+    st.write("---")
+    st.markdown(f"🔥 **Streak:** {st.session_state.streak} Days")
+    if st.button("RESET DATA"):
+        st.session_state.clear()
         st.rerun()
 
 st.markdown("<h1 class='brand-title'>ENGLISH GURU</h1>", unsafe_allow_html=True)
 
-# --- 5. PAGE CONTENT ---
+# --- 6. PAGE CONTENT ---
 
 if page == "🏰 Home Base":
-    c1, c2, c3 = st.columns([2, 1, 1])
+    c1, c2 = st.columns([2, 1])
     with c1:
-        st.markdown(f"### Welcome, {st.session_state.player_name}!")
-        st.write(f"Your Current Rank: **{rank_name}**")
-        st.area_chart({"Your Power": [10, 30, 25, 60, st.session_state.xp]})
+        st.markdown(f"<div class='reward-card'><h2>Welcome back, {st.session_state.player_name}!</h2><p>Current Rank: {rank_name}</p></div>", unsafe_allow_html=True)
+        st.write("### 📈 Your XP Journey")
+        st.area_chart({"XP": [10, 50, 30, 80, st.session_state.xp]})
     
     with c2:
-        st.write("### 🌐 Live Arena Feed")
-        for msg in st.session_state.global_feed[-5:]:
-            st.markdown(f"<p class='feed-text'>{msg}</p>", unsafe_allow_html=True)
+        st.write("### 🌐 Global Feed")
+        for msg in st.session_state.global_feed[-8:]:
+            st.markdown(f"<div class='feed-item'>{msg}</div>", unsafe_allow_html=True)
 
 elif page == "👹 Boss Arena":
     st.write(f"### 👹 World Boss: GRAMMAR TITAN")
     st.progress(st.session_state.boss_hp / 500)
     
-    q = "Battle Question: 'Which one is a collective noun?'"
-    ans = st.radio(q, ["Table", "Team", "Tall"])
+    q = "Battle Task: Choose the correct preposition - 'She is interested ____ music.'"
+    ans = st.radio(q, ["at", "in", "on"])
     
-    if st.button("💥 CO-OP ATTACK"):
-        if ans == "Team":
-            dmg = random.randint(100, 200)
+    if st.button("💥 CO-OP STRIKE"):
+        if ans == "in":
+            dmg = random.randint(120, 220)
             st.session_state.boss_hp = max(0, st.session_state.boss_hp - dmg)
-            st.session_state.xp += 50
-            st.session_state.global_feed.append(f"⚔️ {st.session_state.player_name} dealt {dmg} DMG!")
-            st.success(f"BOOM! You dealt {dmg} damage!")
+            st.session_state.xp += 60
+            st.session_state.global_feed.append(f"⚔️ {st.session_state.player_name} hit for {dmg} DMG!")
+            st.success(f"CRITICAL! {dmg} DMG dealt!")
             if st.session_state.boss_hp <= 0:
                 st.balloons(); st.session_state.boss_hp = 500
         else:
-            st.error("MISS! Boss hit you back!")
+            st.error("MISS! The Titan counter-attacks!")
         time.sleep(1); st.rerun()
 
 elif page == "🏆 Leaderboard":
-    st.markdown("### 🏆 Top Warriors (Global)")
-    # Multiplayer Structure (Simulated)
-    leaderboard_data = [
-        {"Rank": 1, "Name": "ShadowHunter", "XP": 2500, "Status": "Online 🟢"},
-        {"Rank": 2, "Name": st.session_state.player_name, "XP": st.session_state.xp, "Status": "You 🛡️"},
-        {"Rank": 3, "Name": "CyberGamer", "XP": 450, "Status": "Away 🟡"},
-        {"Rank": 4, "Name": "NoobMaster", "XP": 120, "Status": "Offline 🔴"}
+    st.write("### 🏆 Global Hall of Fame")
+    # Simulated multiplayer ranks
+    players = [
+        {"n": "ShadowHunter", "x": 3200, "s": "Online 🟢"},
+        {"n": st.session_state.player_name, "x": st.session_state.xp, "s": "You 🛡️"},
+        {"n": "CyberGamer", "x": 800, "s": "Online 🟢"},
+        {"n": "NoobMaster", "x": 150, "s": "Offline 🔴"}
     ]
-    
-    for player in leaderboard_data:
-        color = "#00f2ff" if player["Name"] == st.session_state.player_name else "#ffffff"
-        st.markdown(f"<div style='padding:10px; border-bottom:1px solid #333; color:{color}'>"
-                    f"#{player['Rank']} | {player['Name']} — {player['XP']} XP ({player['Status']})</div>", 
-                    unsafe_allow_html=True)
+    for p in sorted(players, key=lambda x: x['x'], reverse=True):
+        st.markdown(f"**{p['n']}** — {p['x']} XP | `{p['s']}`")
 
 elif page == "📚 Word Vault":
-    # (Same vault code as before)
-    word = st.text_input("New Word")
-    mean = st.text_input("Meaning")
-    if st.button("Save Word"):
-        st.session_state.vault.append({"word": word, "mean": mean})
-        st.toast("Saved to Vault!")
+    st.write("### 📖 Word Vault")
+    w = st.text_input("Word")
+    m = st.text_input("Meaning")
+    if st.button("Save"):
+        st.session_state.vault.append({"w": w, "m": m})
+        st.success("Knowledge Stored!")
     for item in st.session_state.vault:
-        st.info(f"**{item['word']}**: {item['mean']}")
+        st.info(f"**{item['w']}**: {item['m']}")
