@@ -3,22 +3,31 @@ import sqlite3
 import hashlib
 from datetime import date
 import random
-import time
 import pandas as pd
 
 # --- 1. DATABASE SETUP ---
-conn = sqlite3.connect('english_arena_v32.db', check_same_thread=False)
+conn = sqlite3.connect('english_arena_v33.db', check_same_thread=False)
 c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT, password TEXT, xp INTEGER DEFAULT 0)''')
+c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT, password TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS progress (email TEXT, date TEXT, xp INTEGER)''')
 conn.commit()
 
-# --- 2. SESSION STATE INITIALIZATION (Fixes AttributeError) ---
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 100
-if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
-if 'battle_log' not in st.session_state: st.session_state.battle_log = []
-if 'total_xp' not in st.session_state: st.session_state.total_xp = 0
+# --- 2. SESSION STATE INITIALIZATION (BOHOT ZAROORI HAI) ---
+# Isse AttributeError kabhi nahi aayega
+state_defaults = {
+    'logged_in': False,
+    'user': None,
+    'email': None,
+    'boss_hp': 100,
+    'player_hp': 100,
+    'battle_log': [],
+    'q_pool': [],
+    'current_q': None
+}
+
+for key, value in state_defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 # --- 3. MASSIVE 100+ QUESTIONS BANK ---
 MCQ_DATA = [
@@ -28,121 +37,116 @@ MCQ_DATA = [
     {"q": "Synonym of 'FAST'?", "o": ["Slow", "Quick", "Lazy", "Heavy"], "a": "Quick"},
     {"q": "Translate: 'Never give up'", "o": ["Haar mat maano", "Koshish mat karo", "Bhul jao", "Ruk jao"], "a": "Haar mat maano"},
     {"q": "She ____ a beautiful song.", "o": ["sing", "sings", "singing", "sung"], "a": "sings"},
-    {"q": "Meaning of 'Vibrant'?", "o": ["Dull", "Energetic", "Lazy", "Scary"], "a": "Energetic"},
-    {"q": "Opposite of 'BRAVE'?", "o": ["Strong", "Coward", "Hero", "Smart"], "a": "Coward"},
     {"q": "I have ____ apple.", "o": ["a", "an", "the", "no"], "a": "an"},
     {"q": "Plural of 'CHILD'?", "o": ["Childs", "Children", "Childrens", "Childes"], "a": "Children"}
 ]
-# Auto-generate more to ensure 100+
-for i in range(100):
-    MCQ_DATA.append({"q": f"Q{i+11}: Choose Correct Spelling", "o": ["Grammer", "Grammar", "Grammerr", "Grammarre"], "a": "Grammar"})
+# Adding 100+ items logic
+if not st.session_state.q_pool:
+    temp_pool = MCQ_DATA.copy()
+    for i in range(100):
+        temp_pool.append({"q": f"Level {i}: Correct spelling?", "o": ["Grammer", "Grammar", "Grammarre", "Gramme"], "a": "Grammar"})
+    random.shuffle(temp_pool)
+    st.session_state.q_pool = temp_pool
 
-if 'q_pool' not in st.session_state or len(st.session_state.q_pool) == 0:
-    st.session_state.q_pool = MCQ_DATA.copy()
-    random.shuffle(st.session_state.q_pool)
-
-# --- 4. UI DESIGN ---
-st.set_page_config(page_title="English Arena V32", layout="wide")
+# --- 4. UI STYLING ---
+st.set_page_config(page_title="English Arena V33", layout="wide")
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bungee&display=swap');
-    .stApp { background: #0a0a12; color: white; }
-    .boss-card { background: #2d0a0a; border: 2px solid #ff4b4b; border-radius: 15px; padding: 20px; text-align: center; box-shadow: 0 0 15px #ff4b4b; }
-    .player-card { background: #0a2d2d; border: 2px solid #00f2ff; border-radius: 15px; padding: 20px; text-align: center; box-shadow: 0 0 15px #00f2ff; }
-    .hp-bar { height: 20px; background: #333; border-radius: 10px; margin: 10px 0; }
-    .hp-p { height: 100%; background: #00f2ff; border-radius: 10px; }
-    .hp-b { height: 100%; background: #ff4b4b; border-radius: 10px; }
+    .stApp { background: #0a0e14; color: white; }
+    .boss-box { background: #3b0000; border: 2px solid #ff4b4b; border-radius: 15px; padding: 20px; text-align: center; }
+    .player-box { background: #002b36; border: 2px solid #00f2ff; border-radius: 15px; padding: 20px; text-align: center; }
+    .hp-bar-bg { width: 100%; background: #222; border-radius: 10px; height: 15px; margin: 10px 0; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. LOGIN SYSTEM ---
+# --- 5. AUTHENTICATION ---
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align:center; font-family:Bungee; color:#00f2ff;'>ARENA V32</h1>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1,2,1])
-    with c2:
-        choice = st.radio("Access Terminal", ["Login", "Signup"], horizontal=True)
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        if st.button("EXECUTE"):
-            h = hashlib.sha256(password.encode()).hexdigest()
-            if choice == "Login":
-                res = c.execute("SELECT password, username FROM users WHERE email=?", (email,)).fetchone()
-                if res and res[0] == h:
-                    st.session_state.logged_in, st.session_state.user, st.session_state.email = True, res[1], email
-                    st.rerun()
-                else: st.error("Invalid Credentials")
-            else:
-                un = st.text_input("Hero Name")
-                if un:
-                    try:
-                        c.execute("INSERT INTO users (email, username, password) VALUES (?,?,?)", (email, un, h))
-                        conn.commit()
-                        st.success("Account Created! Now Login.")
-                    except: st.error("Email already exists.")
+    st.markdown("<h1 style='text-align:center; font-family:Bungee; color:#00f2ff;'>ARENA V33</h1>", unsafe_allow_html=True)
+    mode = st.tabs(["🔥 Login", "💎 Signup"])
+    
+    with mode[0]:
+        le = st.text_input("Email", key="le")
+        lp = st.text_input("Password", type="password", key="lp")
+        if st.button("START BATTLE"):
+            res = c.execute("SELECT password, username FROM users WHERE email=?", (le,)).fetchone()
+            if res and res[0] == hashlib.sha256(lp.encode()).hexdigest():
+                st.session_state.logged_in, st.session_state.user, st.session_state.email = True, res[1], le
+                st.rerun()
+            else: st.error("Wrong Key!")
+            
+    with mode[1]:
+        ne, nu, np = st.text_input("New Email"), st.text_input("Hero Name"), st.text_input("Set Key", type="password")
+        if st.button("CREATE HERO"):
+            try:
+                c.execute("INSERT INTO users VALUES (?,?,?)", (ne, nu, hashlib.sha256(np.encode()).hexdigest()))
+                conn.commit()
+                st.success("Hero Created! Please Login.")
+            except: st.error("Email already taken!")
+
+# --- 6. GAME CONTENT ---
 else:
-    # --- 6. GAME DASHBOARD ---
     page = st.sidebar.selectbox("COMMANDS", ["⚔️ Boss Battle", "🏆 Leaderboard", "Logout"])
     
     if page == "Logout":
         st.session_state.logged_in = False
         st.rerun()
 
-    # Fetch total XP for ranking
-    xp_res = c.execute("SELECT SUM(xp) FROM progress WHERE email=?", (st.session_state.email,)).fetchone()
-    st.session_state.total_xp = xp_res[0] if xp_res[0] else 0
-
     if page == "⚔️ Boss Battle":
-        st.markdown(f"<h2 style='text-align:center; font-family:Bungee;'>MISSION: DEFEAT THE AI MONSTER</h2>", unsafe_allow_html=True)
-        
-        # Display HP and Stats
-        col1, col2, col3 = st.columns([2,1,2])
-        with col1:
-            st.markdown(f"<div class='player-card'>🛡️ {st.session_state.user}<br>XP: {st.session_state.total_xp}<div class='hp-bar'><div class='hp-p' style='width:{st.session_state.player_hp}%'></div></div>{st.session_state.player_hp} HP</div>", unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"<div class='boss-card'>👹 AI BOSS<br>LEVEL: MAX<div class='hp-bar'><div class='hp-b' style='width:{st.session_state.boss_hp}%'></div></div>{st.session_state.boss_hp} HP</div>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align:center; font-family:Bungee;'>MISSION: DESTROY AI MONSTER</h2>", unsafe_allow_html=True)
 
-        # Battle Actions
+        # Health Display
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"<div class='player-box'>🛡️ {st.session_state.user}<div class='hp-bar-bg'><div style='width:{st.session_state.player_hp}%; background:#00f2ff; height:100%; border-radius:10px;'></div></div>{st.session_state.player_hp} HP</div>", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"<div class='boss-box'>👹 AI BOSS<div class='hp-bar-bg'><div style='width:{st.session_state.boss_hp}%; background:#ff4b4b; height:100%; border-radius:10px;'></div></div>{st.session_state.boss_hp} HP</div>", unsafe_allow_html=True)
+
         if st.session_state.boss_hp <= 0:
             st.balloons()
-            st.success("🔥 VICTORY! Boss Destroyed. +100 XP awarded!")
+            st.success(f"🎊 CONGRATULATIONS {st.session_state.user}! You saved the Arena!")
             c.execute("INSERT INTO progress VALUES (?,?,?)", (st.session_state.email, str(date.today()), 100))
             conn.commit()
-            if st.button("FIND NEW TARGET"):
+            if st.button("SPAWN NEW BOSS"):
                 st.session_state.boss_hp, st.session_state.player_hp, st.session_state.battle_log = 100, 100, []
                 st.rerun()
         elif st.session_state.player_hp <= 0:
-            st.error("💀 YOU WERE DEFEATED!")
+            st.error("💀 DEFEATED! The Boss was too strong.")
             if st.button("REVIVE"):
                 st.session_state.boss_hp, st.session_state.player_hp, st.session_state.battle_log = 100, 100, []
                 st.rerun()
         else:
-            # Battle Logic with auto-opponent
-            q = st.session_state.q_pool[0]
-            with st.form("action_form"):
-                st.markdown(f"### ❓ {q['q']}")
-                ans = st.radio("Pick your answer:", q['o'])
-                atk = st.form_submit_button("💥 LAUNCH ATTACK")
-                
-                if atk:
+            # Pick a question if not already picked
+            if not st.session_state.current_q:
+                st.session_state.current_q = st.session_state.q_pool.pop(0)
+
+            q = st.session_state.current_q
+            with st.form("fight_form"):
+                st.write(f"### ❓ {q['q']}")
+                ans = st.radio("Choose Weapon:", q['o'])
+                if st.form_submit_button("💥 LAUNCH ATTACK"):
                     if ans == q['a']:
                         dmg = random.randint(30, 45)
                         st.session_state.boss_hp -= dmg
-                        st.session_state.battle_log.append(f"✅ EXCELLENT! You dealt {dmg} damage!")
-                        st.session_state.q_pool.pop(0) # Remove question
+                        st.session_state.battle_log.append(f"✅ EXCELLENT! You dealt {dmg} DMG!")
+                        st.toast(f"Critical Hit! +{dmg} Damage", icon="🔥")
                     else:
-                        st.session_state.battle_log.append(f"❌ MISSED! Your attack failed.")
+                        st.session_state.battle_log.append("❌ MISSED! Your attack failed.")
                     
-                    # AI Boss Move (Automatic)
-                    b_dmg = random.randint(15, 25)
-                    st.session_state.player_hp -= b_dmg
-                    st.session_state.battle_log.append(f"👹 BOSS ATTACK: You took {b_dmg} damage!")
+                    # AI Opponent Automatic Turn
+                    boss_dmg = random.randint(15, 25)
+                    st.session_state.player_hp -= boss_dmg
+                    st.session_state.battle_log.append(f"👹 BOSS TURN: Counter-attacked for {boss_dmg} DMG!")
+                    
+                    st.session_state.current_q = None # Reset for next turn
                     st.rerun()
 
-        # Battle Logs
-        for l in st.session_state.battle_log[-3:]:
-            st.info(l)
+        # Display Logs
+        for log in st.session_state.battle_log[-3:]:
+            st.info(log)
 
     elif page == "🏆 Leaderboard":
-        st.markdown("<h1 style='font-family:Bungee;'>TOP WARRIORS</h1>", unsafe_allow_html=True)
-        lb = c.execute("SELECT u.username, SUM(p.xp) as total FROM progress p JOIN users u ON p.email = u.email GROUP BY u.email ORDER BY total DESC").fetchall()
-        st.table(pd.DataFrame(lb, columns=["Hero", "Total XP"]))
+        st.markdown("<h1 style='font-family:Bungee;'>HALL OF LEGENDS</h1>", unsafe_allow_html=True)
+        data = c.execute("SELECT u.username, SUM(p.xp) as total FROM progress p JOIN users u ON p.email = u.email GROUP BY u.email ORDER BY total DESC").fetchall()
+        if data:
+            st.dataframe(pd.DataFrame(data, columns=["Hero", "Total XP"]), use_container_width=True)
