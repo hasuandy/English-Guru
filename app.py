@@ -2,152 +2,127 @@ import streamlit as st
 import random
 import time
 
-# ==========================================
-# 1. 🧠 SMART STATE MANAGEMENT (No Database Needed)
-# ==========================================
+# 1. 🧠 SESSION STATE (Data Storage)
 if 'xp' not in st.session_state: st.session_state.xp = 0
-if 'user' not in st.session_state: st.session_state.user = "Hero Warrior"
+if 'user' not in st.session_state: st.session_state.user = "Hero"
 if 'avatar' not in st.session_state: st.session_state.avatar = "Ninja"
 if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 100
 if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
-if 'history' not in st.session_state: st.session_state.history = []
 
-# ==========================================
-# 🎨 GRAPHICS & ASSETS
-# ==========================================
+# 2. 🎨 ASSETS
 AVATARS = {
     "Ninja": "https://cdn-icons-png.flaticon.com/512/616/616408.png",
     "Robot": "https://cdn-icons-png.flaticon.com/512/616/616430.png",
     "Monster": "https://cdn-icons-png.flaticon.com/512/616/616412.png"
 }
 
-# ==========================================
-# ✨ PRO GAMING UI
-# ==========================================
-st.set_page_config(page_title="English Guru V43", layout="wide", page_icon="🎮")
+# 3. ✨ UI SETUP
+st.set_page_config(page_title="English Guru Pro", layout="wide")
 
-st.markdown(f"""
+st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
-    .stApp {{ background: radial-gradient(circle, #1a1a2e, #020205); color: white; font-family: 'Rajdhani', sans-serif; }}
-    .gaming-card {{ 
+    .stApp { background: radial-gradient(circle, #1a1a2e, #020205); color: white; font-family: 'Rajdhani', sans-serif; }
+    .gaming-card { 
         background: rgba(255,255,255,0.05); 
         border: 2px solid #00f2ff; 
         border-radius: 15px; 
-        padding: 25px; 
+        padding: 20px; 
         text-align: center;
-        box-shadow: 0 0 20px rgba(0,242,255,0.2);
-    }}
-    .stButton>button {{ 
-        width: 100%; 
-        border-radius: 12px; 
+        box-shadow: 0 0 15px rgba(0,242,255,0.2);
+    }
+    .stButton>button { 
         background: linear-gradient(45deg, #00f2ff, #7000ff); 
         color: white !important; 
         font-family: 'Bungee';
+        border-radius: 10px;
         border: none;
-        height: 50px;
-        transition: 0.3s;
-    }}
-    .stButton>button:hover {{ transform: scale(1.02); box-shadow: 0 0 15px #00f2ff; }}
+        height: 45px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# ==========================================
-# 🎮 SIDEBAR NAVIGATION
-# ==========================================
+# 4. 🎮 SIDEBAR
 with st.sidebar:
-    st.image(AVATARS[st.session_state.avatar], width=120)
+    st.image(AVATARS[st.session_state.avatar], width=100)
     st.markdown(f"<h2 style='color:#00f2ff; font-family:Bungee;'>{st.session_state.user}</h2>", unsafe_allow_html=True)
+    st.write(f"🎖️ XP: {st.session_state.xp}")
     st.divider()
-    st.metric("🎖️ TOTAL XP", st.session_state.xp)
-    st.divider()
-    page = st.selectbox("CHOOSE MISSION", ["🏠 Base", "🎓 Training", "⚔️ Boss Battle", "⚙️ Settings"])
+    page = st.radio("SELECT MISSION", ["🏠 Base", "🎓 Training", "⚔️ Boss Battle", "⚙️ Settings"])
     
-    st.write("---")
-    if st.button("🔄 EMERGENCY RESET"):
+    if st.button("🔄 Reset Game"):
         st.session_state.clear()
         st.rerun()
 
-# ==========================================
-# 🏠 PAGE: BASE
-# ==========================================
+# 5. 🏠 PAGE: BASE
 if page == "🏠 Base":
     st.markdown("<h1 style='font-family:Bungee;'>COMMAND CENTER</h1>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"""<div class='gaming-card'>
-            <h3>Welcome Commander</h3>
-            <p>Master English to gain power.</p>
-            <h2 style='color:#00f2ff;'>LVL {1 + (st.session_state.xp // 100)}</h2>
-        </div>""", unsafe_allow_html=True)
-    with col2:
-        st.image("https://i.pinimg.com/originals/8d/6d/21/8d6d214a1941d4f23b7b396b2d22b512.gif", width=200)
+    st.markdown(f"""
+        <div class='gaming-card'>
+            <h2>Welcome Back, {st.session_state.user}!</h2>
+            <p>Master English vocabulary to defeat the final boss.</p>
+            <h1 style='color:#00f2ff;'>LEVEL {1 + (st.session_state.xp // 100)}</h1>
+        </div>
+    """, unsafe_allow_html=True)
 
-# ==========================================
-# 🎓 PAGE: TRAINING
-# ==========================================
+# 6. 🎓 PAGE: TRAINING
 elif page == "🎓 Training":
     st.markdown("<h1 style='font-family:Bungee;'>TRAINING ZONE</h1>", unsafe_allow_html=True)
     
-    # Fast Question Logic
-    questions = [
-        {"q": "Meaning of 'VIBRANT'?", "o": ["Dull", "Energetic", "Lazy", "Small"], "a": "Energetic"},
-        {"q": "Past tense of 'EAT'?", "o": ["Eaten", "Eating", "Ate", "Eats"], "a": "Ate"}
+    q_pool = [
+        {"q": "Meaning of 'ENORMOUS'?", "o": ["Very Small", "Huge", "Weak"], "a": "Huge"},
+        {"q": "Plural of 'Tooth'?", "o": ["Tooths", "Teeth", "Teeths"], "a": "Teeth"}
     ]
     
-    q = random.choice(questions)
-    st.markdown(f"<div class='gaming-card'><h3>{q['q']}</h3></div>", unsafe_allow_html=True)
+    # Simple Question Logic
+    if 't_idx' not in st.session_state: st.session_state.t_idx = random.randint(0, len(q_pool)-1)
+    tq = q_pool[st.session_state.t_idx]
     
-    ans = st.radio("Select Correct Option:", q["o"])
+    st.markdown(f"<div class='gaming-card'><h3>{tq['q']}</h3></div>", unsafe_allow_html=True)
+    ans = st.radio("Choose correct answer:", tq["o"])
     
-    if st.button("SUBMIT ANSWER"):
-        if ans == q["a"]:
+    if st.button("SUBMIT"):
+        if ans == tq["a"]:
             st.session_state.xp += 20
-            st.success("🔥 EXCELLENT! +20 XP")
+            st.success("Correct! +20 XP")
             st.balloons()
+            del st.session_state.t_idx
             time.sleep(1)
             st.rerun()
         else:
-            st.error("❌ WRONG! Keep practicing.")
+            st.error("Wrong! Try again.")
 
-# ==========================================
-# ⚔️ PAGE: BOSS BATTLE
-# ==========================================
+# 7. ⚔️ PAGE: BOSS BATTLE
 elif page == "⚔️ Boss Battle":
     st.markdown("<h1 style='font-family:Bungee; color:#ff4b4b;'>BOSS ARENA</h1>", unsafe_allow_html=True)
     
-    c1, c2 = st.columns(2)
-    with c1: st.metric("Player Health", f"{st.session_state.player_hp}%")
-    with c2: st.metric("Boss Health", f"{st.session_state.boss_hp}%")
+    col1, col2 = st.columns(2)
+    with col1: st.metric("Player Health", f"{st.session_state.player_hp}%")
+    with col2: st.metric("Boss Health", f"{st.session_state.boss_hp}%")
     
     st.progress(st.session_state.boss_hp / 100)
     
-    if st.button("💥 LAUNCH MEGA ATTACK"):
-        damage = random.randint(20, 40)
-        st.session_state.boss_hp -= damage
+    if st.button("🔥 ATTACH BOSS"):
+        st.session_state.boss_hp -= 25
         if st.session_state.boss_hp <= 0:
-            st.success("🏆 BOSS DEFEATED! You earned 100 XP!")
-            st.session_state.xp += 100
+            st.success("Victory! You defeated the Boss!")
+            st.session_state.xp += 50
             st.session_state.boss_hp = 100
         st.rerun()
 
-# ==========================================
-# ⚙️ PAGE: SETTINGS
-# ==========================================
+# 8. ⚙️ PAGE: SETTINGS
 elif page == "⚙️ Settings":
-    st.markdown("<h1 style='font-family:Bungee;'>PROFILE SETTINGS</h1>", unsafe_allow_html=True)
-    
-    new_name = st.text_input("Change Hero Name", value=st.session_state.user)
-    if st.button("SAVE NAME"):
-        st.session_state.user = new_name
+    st.markdown("<h1 style='font-family:Bungee;'>SETTINGS</h1>", unsafe_allow_html=True)
+    new_n = st.text_input("New Name", value=st.session_state.user)
+    if st.button("Save Name"):
+        st.session_state.user = new_n
         st.rerun()
-        
-    st.divider()
-    st.write("### Choose Your Avatar")
+    
+    st.write("### Choose Avatar")
     cols = st.columns(3)
     for i, (name, url) in enumerate(AVATARS.items()):
         with cols[i]:
-            st.image(url, width=80)
-            if st.button(f"SELECT {name.upper()}"):
+            st.image(url, width=70)
+            if st.button(f"Pick {name}"):
                 st.session_state.avatar = name
                 st.rerun()
