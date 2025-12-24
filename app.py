@@ -1,98 +1,117 @@
 import streamlit as st
-import sqlite3
 import random
-from datetime import date
+import time
 
 # ==========================================
-# 1. DATABASE ENGINE (Error-Proof)
+# 1. SESSION STATE (Database ki jagah ye use hoga)
 # ==========================================
-DB_NAME = 'final_v99.db'
-
-def run_query(query, params=()):
-    with sqlite3.connect(DB_NAME, check_same_thread=False) as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        conn.commit()
-        return cursor.fetchall()
-
-# Initialize Tables
-run_query('''CREATE TABLE IF NOT EXISTS users 
-             (email TEXT PRIMARY KEY, username TEXT, avatar TEXT)''')
-run_query('''CREATE TABLE IF NOT EXISTS progress 
-             (email TEXT, xp INTEGER)''')
-
-# ==========================================
-# 2. SESSION & UI SETUP
-# ==========================================
-st.set_page_config(page_title="English Guru Final", layout="wide")
-
 if 'xp' not in st.session_state: st.session_state.xp = 0
-if 'user' not in st.session_state: st.session_state.user = "Hero"
-if 'email' not in st.session_state: st.session_state.email = "test@guru.com"
+if 'user' not in st.session_state: st.session_state.user = "Hero Warrior"
+if 'avatar' not in st.session_state: st.session_state.avatar = "Ninja"
 if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 100
+if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
+if 'combo' not in st.session_state: st.session_state.combo = 0
 
-st.markdown("""
+# ==========================================
+# 🎨 ASSETS
+# ==========================================
+AVATARS = {
+    "Ninja": "https://cdn-icons-png.flaticon.com/512/616/616408.png",
+    "Robot": "https://cdn-icons-png.flaticon.com/512/616/616430.png",
+    "Monster": "https://cdn-icons-png.flaticon.com/512/616/616412.png"
+}
+
+# ==========================================
+# ✨ STYLING
+# ==========================================
+st.set_page_config(page_title="English Guru V42", layout="wide")
+st.markdown(f"""
     <style>
-    .main { background-color: #0e1117; color: white; }
-    .stButton>button { width: 100%; border-radius: 20px; background: #00f2ff; color: black; font-weight: bold; }
-    .stat-card { padding: 20px; border: 2px solid #00f2ff; border-radius: 15px; text-align: center; }
+    .stApp {{ background: #0e1117; color: white; }}
+    .gaming-card {{ 
+        background: rgba(255,255,255,0.05); 
+        border: 2px solid #00f2ff; 
+        border-radius: 15px; 
+        padding: 20px; 
+        text-align: center; 
+    }}
+    .stButton>button {{ width: 100%; border-radius: 10px; background: #00f2ff; color: black; font-weight: bold; }}
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. SIDEBAR & NAV
+# 🎮 NAVIGATION
 # ==========================================
-# Sync with DB
-run_query("INSERT OR IGNORE INTO users VALUES (?, ?, ?)", (st.session_state.email, st.session_state.user, "Ninja"))
-db_user = run_query("SELECT username FROM users WHERE email=?", (st.session_state.email,))
-u_name = db_user[0][0] if db_user else st.session_state.user
-
 with st.sidebar:
-    st.title(f"🎮 {u_name}")
-    xp_data = run_query("SELECT SUM(xp) FROM progress WHERE email=?", (st.session_state.email,))
-    total_xp = xp_data[0][0] if xp_data[0][0] else 0
-    st.metric("Total XP", total_xp)
+    st.image(AVATARS[st.session_state.avatar], width=100)
+    st.title(st.session_state.user)
+    st.metric("Total XP", st.session_state.xp)
     page = st.radio("Menu", ["Base", "Training", "Boss Battle", "Settings"])
+    
+    if st.button("🔄 FULL RESET"):
+        st.session_state.clear()
+        st.rerun()
 
 # ==========================================
-# 4. PAGES
+# 🏠 PAGE: BASE
 # ==========================================
-
 if page == "Base":
     st.header("🏠 Home Base")
-    st.markdown(f"<div class='stat-card'><h1>Welcome {u_name}</h1><p>Level Up by Training!</p></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='gaming-card'><h1>Welcome {st.session_state.user}</h1><p>Start training to earn XP and defeat the Boss!</p></div>", unsafe_allow_html=True)
 
+# ==========================================
+# 🎓 PAGE: TRAINING
+# ==========================================
 elif page == "Training":
-    st.header("🎓 Training")
-    q = {"q": "Opposite of 'FAST'?", "o": ["Quick", "Slow", "Run", "High"], "a": "Slow"}
+    st.header("🎓 Fast Training")
+    q = {"q": "Opposite of 'BIG'?", "o": ["Large", "Small", "Tall", "Wide"], "a": "Small"}
     
-    st.subheader(q["q"])
-    ans = st.radio("Choose:", q["o"])
+    st.markdown(f"<div class='gaming-card'><h3>{q['q']}</h3></div>", unsafe_allow_html=True)
+    ans = st.selectbox("Select Answer:", q["o"])
     
-    if st.button("Submit Answer"):
+    if st.button("Submit"):
         if ans == q["a"]:
-            run_query("INSERT INTO progress VALUES (?, ?)", (st.session_state.email, 10))
-            st.success("Correct! +10 XP Sent to Database")
+            st.session_state.xp += 10
+            st.success("✅ Correct! +10 XP added.")
             st.balloons()
         else:
-            st.error("Wrong! Try again.")
+            st.error("❌ Wrong! Try again.")
 
+# ==========================================
+# ⚔️ PAGE: BOSS BATTLE
+# ==========================================
 elif page == "Boss Battle":
-    st.header("⚔️ Boss Arena")
-    col1, col2 = st.columns(2)
-    with col1: st.metric("Boss HP", f"{st.session_state.boss_hp}%")
+    st.header("⚔️ Boss Fight")
     
-    if st.button("🔥 ATTACH BOSS"):
-        st.session_state.boss_hp -= 20
+    col1, col2 = st.columns(2)
+    with col1: st.metric("Player HP", f"{st.session_state.player_hp}%")
+    with col2: st.metric("Boss HP", f"{st.session_state.boss_hp}%")
+    
+    if st.button("🔥 SUPER ATTACK"):
+        st.session_state.boss_hp -= 25
         if st.session_state.boss_hp <= 0:
-            st.success("Victory!")
+            st.success("🏆 YOU WON! Boss Defeated!")
             st.session_state.boss_hp = 100
+            st.session_state.xp += 50
         st.rerun()
 
+# ==========================================
+# ⚙️ PAGE: SETTINGS
+# ==========================================
 elif page == "Settings":
-    st.header("⚙️ Settings")
-    new_name = st.text_input("Change Name", value=u_name)
-    if st.button("Update"):
-        run_query("UPDATE users SET username=? WHERE email=?", (new_name, st.session_state.email))
-        st.success("Name Changed!")
+    st.header("⚙️ Profile Settings")
+    
+    new_name = st.text_input("Change Name", value=st.session_state.user)
+    if st.button("Update Name"):
+        st.session_state.user = new_name
         st.rerun()
+        
+    st.divider()
+    st.write("### Choose Avatar")
+    acols = st.columns(3)
+    for i, (name, url) in enumerate(AVATARS.items()):
+        with acols[i]:
+            st.image(url, width=60)
+            if st.button(f"Pick {name}"):
+                st.session_state.avatar = name
+                st.rerun()
