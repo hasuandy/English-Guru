@@ -2,186 +2,120 @@ import streamlit as st
 import sqlite3
 import random
 from datetime import date
+import base64
 
 # =====================
 DEV_MODE = True
 # =====================
 
 # ---------- DATABASE ----------
-conn = sqlite3.connect("english_guru_fun.db", check_same_thread=False)
+conn = sqlite3.connect("english_guru_story.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute("CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT)")
 c.execute("CREATE TABLE IF NOT EXISTS progress (email TEXT, date TEXT, xp INTEGER)")
 conn.commit()
 
-# ---------- SESSION INIT (CRASH-SAFE) ----------
+# ---------- SESSION ----------
 defaults = {
     "logged_in": False,
-    "combo": 0,
-    "boss_hp": 120,
-    "player_hp": 100,
-    "power": 3,
-    "chest": None,
-    "lucky": False
+    "level": 1,
+    "xp": 0,
+    "map_level": 1,
+    "q": None
 }
-
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ---------- DEV AUTO LOGIN ----------
+# ---------- DEV LOGIN ----------
 if DEV_MODE and not st.session_state.logged_in:
     st.session_state.logged_in = True
-    st.session_state.email = "test@guru.com"
+    st.session_state.email = "hero@guru.com"
     st.session_state.user = "Hero_Yashi"
     c.execute("INSERT OR IGNORE INTO users VALUES (?,?)",
               (st.session_state.email, st.session_state.user))
     conn.commit()
 
+# ---------- SOUNDS (BASE64 SMALL BEEPS) ----------
+def play_sound(kind):
+    sounds = {
+        "correct": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=",
+        "wrong": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=",
+        "win": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
+    }
+    audio = base64.b64decode(sounds[kind])
+    st.audio(audio, format="audio/wav")
+
 # ---------- DATA ----------
+STORY_MAP = {
+    1: {"name": "🌲 Forest of Words", "xp": 30},
+    2: {"name": "🏰 Grammar Castle", "xp": 50},
+    3: {"name": "🐉 Dragon of Vocabulary", "xp": 100}
+}
+
 QUESTIONS = [
-    ("Antonym of ANCIENT?", ["Old", "Modern", "Heavy"], "Modern"),
     ("Plural of Mouse?", ["Mouses", "Mice", "Mouse"], "Mice"),
     ("Past tense of Go?", ["Gone", "Went", "Going"], "Went"),
-]
-
-BOSS_Q = [
-    ("Meaning of AMBIGUOUS?", ["Clear", "Uncertain", "Big"], "Uncertain"),
-    ("Synonym of METICULOUS?", ["Careless", "Precise", "Lazy"], "Precise"),
+    ("Antonym of Hot?", ["Cold", "Warm", "Heat"], "Cold")
 ]
 
 # ---------- FUNCTIONS ----------
 def add_xp(x):
+    st.session_state.xp += x
     c.execute("INSERT INTO progress VALUES (?,?,?)",
               (st.session_state.email, str(date.today()), x))
     conn.commit()
 
-def total_xp():
-    c.execute("SELECT COALESCE(SUM(xp),0) FROM progress WHERE email=?",
-              (st.session_state.email,))
-    return c.fetchone()[0]
-
 # ---------- UI ----------
-st.set_page_config("English Guru – FUN MODE", "🎮", "wide")
-st.title("🎮 English Guru – FUN MODE")
-
-xp = total_xp()
-level = 1 + xp // 100
+st.set_page_config("English Guru – Story Mode", "🗺️", "wide")
+st.title("🗺️ English Guru – STORY MODE")
 
 with st.sidebar:
     st.header(st.session_state.user)
-    st.write(f"⭐ Level: {level}")
-    st.write(f"💰 XP: {xp}")
-    page = st.radio("MENU", ["🎓 Training", "⚔️ Boss Fight", "🏆 Leaderboard"])
+    st.write(f"⭐ XP: {st.session_state.xp}")
+    page = st.radio("MENU", ["🗺️ Story Map", "🎓 Mission", "🏆 Progress"])
 
-# ================= TRAINING =================
-if page == "🎓 Training":
-    st.subheader("🔥 Training Arena")
+# ================= MAP =================
+if page == "🗺️ Story Map":
+    st.subheader("🌍 World Map")
 
-    if "q" not in st.session_state:
-        st.session_state.q = random.choice(QUESTIONS)
-        st.session_state.lucky = random.choice([True, False, False])
-
-    q, opts, ans = st.session_state.q
-    st.markdown(f"### {q}")
-
-    if st.session_state.lucky:
-        st.info("🍀 LUCKY QUESTION → DOUBLE XP!")
-
-    for o in opts:
-        if st.button(o):
-            if o == ans:
-                st.session_state.combo += 1
-                gain = 20 if st.session_state.lucky else 10
-                add_xp(gain)
-                st.success(f"+{gain} XP")
-
-                if st.session_state.combo % 3 == 0:
-                    st.session_state.chest = random.choice(
-                        ["🟤 Bronze Chest", "🟡 Gold Chest", "💎 Diamond Chest"]
-                    )
-            else:
-                st.session_state.combo = 0
-                st.error("Wrong!")
-
-            del st.session_state.q
-            st.rerun()
-
-    st.write("🔥 Combo:", st.session_state.combo)
-
-    if st.session_state.chest:
-        st.balloons()
-        chest = st.session_state.chest
-        st.success(f"🎁 You unlocked {chest}")
-
-        if chest == "🟤 Bronze Chest":
-            add_xp(20)
-        elif chest == "🟡 Gold Chest":
-            st.session_state.power += 1
+    for lvl, data in STORY_MAP.items():
+        if st.session_state.map_level >= lvl:
+            if st.button(f"{data['name']}"):
+                st.session_state.current_stage = lvl
+                st.session_state.q = random.choice(QUESTIONS)
+                st.switch_page("app.py")
         else:
-            add_xp(50)
+            st.write(f"🔒 {data['name']} (Locked)")
 
-        st.session_state.chest = None
+# ================= MISSION =================
+elif page == "🎓 Mission":
+    if "current_stage" not in st.session_state:
+        st.info("Select a location from Map")
+    else:
+        q, opts, ans = st.session_state.q
+        st.markdown(f"### {q}")
 
-# ================= BOSS =================
-elif page == "⚔️ Boss Fight":
-    st.subheader("😈 Boss Arena")
+        for o in opts:
+            if st.button(o):
+                if o == ans:
+                    reward = STORY_MAP[st.session_state.current_stage]["xp"]
+                    add_xp(reward)
+                    play_sound("correct")
+                    st.success(f"Mission Clear! +{reward} XP")
+                    st.session_state.map_level += 1
+                    play_sound("win")
+                else:
+                    play_sound("wrong")
+                    st.error("Wrong Answer!")
 
-    st.write(f"❤️ Player HP: {st.session_state.player_hp}")
-    st.write(f"💀 Boss HP: {st.session_state.boss_hp}")
-    st.write(f"🔥 Power Attacks Left: {st.session_state.power}")
+                del st.session_state.current_stage
+                st.rerun()
 
-    if "bq" not in st.session_state:
-        st.session_state.bq = random.choice(BOSS_Q)
-
-    q, opts, ans = st.session_state.bq
-    choice = st.radio(q, opts)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("⚔️ ATTACK"):
-            if choice == ans:
-                st.session_state.boss_hp -= 30
-            else:
-                st.session_state.player_hp -= 20
-            del st.session_state.bq
-            st.rerun()
-
-    with col2:
-        if st.button("🔥 POWER ATTACK") and st.session_state.power > 0:
-            if choice == ans:
-                st.session_state.boss_hp -= 70
-            else:
-                st.session_state.player_hp -= 30
-            st.session_state.power -= 1
-            del st.session_state.bq
-            st.rerun()
-
-    if st.session_state.boss_hp <= 0:
-        st.balloons()
-        add_xp(100)
-        st.success("🏆 Boss Defeated! +100 XP")
-        st.session_state.boss_hp = 120
-        st.session_state.player_hp = 100
-        st.session_state.power = 3
-
-    if st.session_state.player_hp <= 0:
-        st.error("💀 You Died! Revived.")
-        st.session_state.player_hp = 100
-
-# ================= LEADERBOARD =================
-elif page == "🏆 Leaderboard":
-    st.subheader("🏆 Leaderboard")
-
-    rows = c.execute("""
-    SELECT u.username, COALESCE(SUM(p.xp),0)
-    FROM users u
-    LEFT JOIN progress p ON u.email=p.email
-    GROUP BY u.email
-    ORDER BY 2 DESC
-    """).fetchall()
-
-    for i, r in enumerate(rows):
-        st.write(f"#{i+1} 🏅 {r[0]} — {r[1]} XP")
+# ================= PROGRESS =================
+elif page == "🏆 Progress":
+    st.subheader("🏆 Your Journey")
+    st.progress(st.session_state.map_level / len(STORY_MAP))
+    st.write(f"Unlocked Areas: {st.session_state.map_level}/{len(STORY_MAP)}")
+    st.write(f"Total XP: {st.session_state.xp}")
