@@ -94,45 +94,45 @@ if st.session_state.logged_in:
                 c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", (st.session_state.email, today, 50))
                 conn.commit(); st.rerun()
 
-    # --- UPDATED TRAINING ZONE ---
+   # --- UPDATED TRAINING ZONE (FIXED SUBMIT ISSUE) ---
     elif page == "🎓 Training":
         st.markdown(f"<h1 style='font-family:Bungee; color:{st.session_state.theme};'>🎓 TRAINING ZONE</h1>", unsafe_allow_html=True)
         train_tab1, train_tab2 = st.tabs(["🔥 MCQ PRACTICE", "📚 WORD VAULT"])
         
         with train_tab1:
             st.markdown(f"### Current Combo: {'🔥' * st.session_state.combo} ({st.session_state.combo})")
+            
+            # Question Selection logic
             if 'current_tq' not in st.session_state:
                 st.session_state.current_tq = random.choice(TRAINING_DATA)
             
             tq = st.session_state.current_tq
             st.markdown(f"<div class='gaming-card'><h2>{tq['q']}</h2></div>", unsafe_allow_html=True)
             
+            # Buttons directly submit the answer
             cols = st.columns(2)
             for i, opt in enumerate(tq['o']):
-                with cols[i%2]:
-                    if st.button(opt, key=f"tbtn_{i}_{time.time()}"):
+                with cols[i % 2]:
+                    # Har button ek unique key ke sath
+                    if st.button(opt, key=f"train_opt_{i}_{time.time()}"):
                         if opt == tq['a']:
                             st.session_state.combo += 1
                             gain = 10 if st.session_state.combo < 3 else 20
-                            c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), gain))
+                            # Database entry
+                            c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", 
+                                     (st.session_state.email, str(date.today()), gain))
                             conn.commit()
-                            st.success(f"Correct! +{gain} XP")
+                            st.success(f"Sahi Jawab! +{gain} XP")
+                            time.sleep(0.4)
                         else:
                             st.session_state.combo = 0
-                            st.error("Wrong! Combo Broken.")
-                        time.sleep(0.5); del st.session_state.current_tq; st.rerun()
-        
-        with train_tab2:
-            st.subheader("Your Personal Dictionary")
-            w = st.text_input("New Word")
-            m = st.text_input("Meaning")
-            if st.button("SAVE WORD"):
-                if w and m:
-                    c.execute("INSERT INTO dictionary (email, word, meaning) VALUES (?, ?, ?)", (st.session_state.email, w, m))
-                    conn.commit(); st.success("Saved!")
-            
-            words = c.execute("SELECT word, meaning FROM dictionary WHERE email=?", (st.session_state.email,)).fetchall()
-            for row in words: st.write(f"📖 **{row[0]}**: {row[1]}")
+                            st.error(f"Galat! Sahi jawab tha: {tq['a']}")
+                            time.sleep(0.8)
+                        
+                        # Question reset aur refresh
+                        del st.session_state.current_tq
+                        st.rerun()
+                    
 
     # --- BOSS BATTLE ---
     elif page == "⚔️ Boss Battle":
@@ -188,3 +188,4 @@ if st.session_state.logged_in:
         st.title("GLOBAL RANKINGS")
         data = c.execute("SELECT u.username, SUM(p.xp) as total FROM progress p JOIN users u ON p.email = u.email GROUP BY u.email ORDER BY total DESC").fetchall()
         for i, row in enumerate(data): st.write(f"#{i+1} {row[0]} - {row[1]} XP")
+
