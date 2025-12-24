@@ -11,18 +11,18 @@ DEV_MODE = True
 # ---------- DATABASE ----------
 conn = sqlite3.connect("english_guru_story.db", check_same_thread=False)
 c = conn.cursor()
-
 c.execute("CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT)")
 c.execute("CREATE TABLE IF NOT EXISTS progress (email TEXT, date TEXT, xp INTEGER)")
 conn.commit()
 
-# ---------- SESSION ----------
+# ---------- SESSION INIT ----------
 defaults = {
     "logged_in": False,
-    "level": 1,
     "xp": 0,
     "map_level": 1,
-    "q": None
+    "current_stage": None,
+    "q": None,
+    "page": "🗺️ Story Map"
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -37,15 +37,14 @@ if DEV_MODE and not st.session_state.logged_in:
               (st.session_state.email, st.session_state.user))
     conn.commit()
 
-# ---------- SOUNDS (BASE64 SMALL BEEPS) ----------
+# ---------- SOUND ----------
 def play_sound(kind):
     sounds = {
         "correct": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=",
-        "wrong": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=",
-        "win": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
+        "wrong":   "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=",
+        "win":     "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
     }
-    audio = base64.b64decode(sounds[kind])
-    st.audio(audio, format="audio/wav")
+    st.audio(base64.b64decode(sounds[kind]), format="audio/wav")
 
 # ---------- DATA ----------
 STORY_MAP = {
@@ -60,7 +59,7 @@ QUESTIONS = [
     ("Antonym of Hot?", ["Cold", "Warm", "Heat"], "Cold")
 ]
 
-# ---------- FUNCTIONS ----------
+# ---------- XP ----------
 def add_xp(x):
     st.session_state.xp += x
     c.execute("INSERT INTO progress VALUES (?,?,?)",
@@ -74,7 +73,12 @@ st.title("🗺️ English Guru – STORY MODE")
 with st.sidebar:
     st.header(st.session_state.user)
     st.write(f"⭐ XP: {st.session_state.xp}")
-    page = st.radio("MENU", ["🗺️ Story Map", "🎓 Mission", "🏆 Progress"])
+    page = st.radio(
+        "MENU",
+        ["🗺️ Story Map", "🎓 Mission", "🏆 Progress"],
+        index=["🗺️ Story Map", "🎓 Mission", "🏆 Progress"].index(st.session_state.page)
+    )
+    st.session_state.page = page
 
 # ================= MAP =================
 if page == "🗺️ Story Map":
@@ -82,17 +86,18 @@ if page == "🗺️ Story Map":
 
     for lvl, data in STORY_MAP.items():
         if st.session_state.map_level >= lvl:
-            if st.button(f"{data['name']}"):
+            if st.button(data["name"]):
                 st.session_state.current_stage = lvl
                 st.session_state.q = random.choice(QUESTIONS)
-                st.switch_page("app.py")
+                st.session_state.page = "🎓 Mission"
+                st.rerun()
         else:
             st.write(f"🔒 {data['name']} (Locked)")
 
 # ================= MISSION =================
 elif page == "🎓 Mission":
-    if "current_stage" not in st.session_state:
-        st.info("Select a location from Map")
+    if not st.session_state.current_stage:
+        st.info("Select a location from Story Map")
     else:
         q, opts, ans = st.session_state.q
         st.markdown(f"### {q}")
@@ -103,14 +108,15 @@ elif page == "🎓 Mission":
                     reward = STORY_MAP[st.session_state.current_stage]["xp"]
                     add_xp(reward)
                     play_sound("correct")
+                    play_sound("win")
                     st.success(f"Mission Clear! +{reward} XP")
                     st.session_state.map_level += 1
-                    play_sound("win")
                 else:
                     play_sound("wrong")
                     st.error("Wrong Answer!")
 
-                del st.session_state.current_stage
+                st.session_state.current_stage = None
+                st.session_state.page = "🗺️ Story Map"
                 st.rerun()
 
 # ================= PROGRESS =================
