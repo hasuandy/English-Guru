@@ -10,8 +10,8 @@ import time
 DEV_MODE = True 
 # ==========================================
 
-# --- 1. DATABASE SETUP (Version v35) ---
-conn = sqlite3.connect('english_guru_pro_v35.db', check_same_thread=False)
+# --- 1. DATABASE SETUP (Version v37) ---
+conn = sqlite3.connect('english_guru_pro_v37.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT, password TEXT, xp INTEGER)''')
 c.execute('''CREATE TABLE IF NOT EXISTS progress (email TEXT, date TEXT, xp INTEGER)''')
@@ -47,7 +47,7 @@ BOSS_POOL = [
 ]
 
 # --- 4. CSS ---
-st.set_page_config(page_title="English Guru V35", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="English Guru V37", page_icon="🎓", layout="wide")
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
@@ -64,6 +64,22 @@ def get_total_xp(email):
     c.execute("SELECT SUM(xp) FROM progress WHERE email = ?", (email,))
     res = c.fetchone()[0]
     return res if res else 0
+
+# CALLBACK FOR TRAINING
+def check_training_answer(user_choice, correct_answer):
+    if user_choice == correct_answer:
+        st.session_state.combo += 1
+        gain = 10 if st.session_state.combo < 3 else 20
+        c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", 
+                 (st.session_state.email, str(date.today()), gain))
+        conn.commit()
+        st.toast(f"✅ Correct! +{gain} XP", icon="🔥")
+    else:
+        st.session_state.combo = 0
+        st.toast(f"❌ Wrong! Correct: {correct_answer}", icon="💀")
+    
+    if 'current_tq' in st.session_state:
+        del st.session_state.current_tq
 
 # --- 5. MAIN CONTENT ---
 if st.session_state.logged_in:
@@ -85,7 +101,6 @@ if st.session_state.logged_in:
         with col1: st.metric("Level", user_level)
         with col2: st.metric("Total XP", txp)
         
-        # Daily Quest
         today = str(date.today())
         c.execute("SELECT completed FROM daily_tasks WHERE email=? AND task_date=?", (st.session_state.email, today))
         if not c.fetchone():
@@ -94,68 +109,58 @@ if st.session_state.logged_in:
                 c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", (st.session_state.email, today, 50))
                 conn.commit(); st.rerun()
 
-   # --- UPDATED TRAINING ZONE (FIXED SUBMIT ISSUE) ---
+    # --- UPDATED TRAINING ZONE (FIXED CALLBACK) ---
     elif page == "🎓 Training":
-        st.markdown(f"<h1 style='font-family:Bungee; color:{st.session_state.theme};'>🎓 TRAINING ZONE</h1>", unsafe_allow_html=True)
-        train_tab1, train_tab2 = st.tabs(["🔥 MCQ PRACTICE", "📚 WORD VAULT"])
+        st.markdown(f"<h1 style='font-family:Bungee; color:{st.session_state.theme};'>🎓 TRAINING</h1>", unsafe_allow_html=True)
+        t_tab1, t_tab2 = st.tabs(["🔥 MCQ PRACTICE", "📚 WORD VAULT"])
         
-        with train_tab1:
-            st.markdown(f"### Current Combo: {'🔥' * st.session_state.combo} ({st.session_state.combo})")
-            
-            # Question Selection logic
+        with t_tab1:
             if 'current_tq' not in st.session_state:
                 st.session_state.current_tq = random.choice(TRAINING_DATA)
             
             tq = st.session_state.current_tq
+            st.markdown(f"### Combo: {'🔥' * st.session_state.combo} ({st.session_state.combo})")
             st.markdown(f"<div class='gaming-card'><h2>{tq['q']}</h2></div>", unsafe_allow_html=True)
             
-            # Buttons directly submit the answer
             cols = st.columns(2)
             for i, opt in enumerate(tq['o']):
                 with cols[i % 2]:
-                    # Har button ek unique key ke sath
-                    if st.button(opt, key=f"train_opt_{i}_{time.time()}"):
-                        if opt == tq['a']:
-                            st.session_state.combo += 1
-                            gain = 10 if st.session_state.combo < 3 else 20
-                            # Database entry
-                            c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", 
-                                     (st.session_state.email, str(date.today()), gain))
-                            conn.commit()
-                            st.success(f"Sahi Jawab! +{gain} XP")
-                            time.sleep(0.4)
-                        else:
-                            st.session_state.combo = 0
-                            st.error(f"Galat! Sahi jawab tha: {tq['a']}")
-                            time.sleep(0.8)
-                        
-                        # Question reset aur refresh
-                        del st.session_state.current_tq
-                        st.rerun()
-                    
+                    st.button(opt, key=f"t_opt_{i}", on_click=check_training_answer, args=(opt, tq['a']), use_container_width=True)
+
+        with t_tab2:
+            st.subheader("Your Personal Dictionary")
+            w = st.text_input("Word")
+            m = st.text_input("Meaning")
+            if st.button("SAVE"):
+                if w and m:
+                    c.execute("INSERT INTO dictionary (email, word, meaning) VALUES (?, ?, ?)", (st.session_state.email, w, m))
+                    conn.commit(); st.success("Saved!")
+            
+            words = c.execute("SELECT word, meaning FROM dictionary WHERE email=?", (st.session_state.email,)).fetchall()
+            for row in words: st.write(f"📖 **{row[0]}**: {row[1]}")
 
     # --- BOSS BATTLE ---
     elif page == "⚔️ Boss Battle":
         current_boss_max_hp = 100 + (user_level * 25)
         boss_dmg = 15 + (user_level * 5)
-        st.markdown(f"<h1 style='color:#ff4b4b; font-family:Bungee;'>BOSS ARENA (LVL {user_level})</h1>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='color:#ff4b4b; font-family:Bungee;'>BOSS ARENA</h1>", unsafe_allow_html=True)
         
         c.execute("SELECT count FROM inventory WHERE email=? AND item='🛡️ Mystic Shield'", (st.session_state.email,))
         res = c.fetchone(); shields = res[0] if res else 0
 
         col_p, col_b = st.columns(2)
         with col_p:
-            st.write(f"**HERO HP: {st.session_state.player_hp}%** | 🛡️ {shields}")
+            st.write(f"**HERO: {st.session_state.player_hp}%** | 🛡️ {shields}")
             st.markdown(f"<div class='hp-bar'><div class='hp-fill' style='width:{st.session_state.player_hp}%; background:{st.session_state.theme};'></div></div>", unsafe_allow_html=True)
         with col_b:
-            st.image("https://i.pinimg.com/originals/8d/6d/21/8d6d214a1941d4f23b7b396b2d22b512.gif", width=150)
+            st.image("https://i.pinimg.com/originals/8d/6d/21/8d6d214a1941d4f23b7b396b2d22b512.gif", width=120)
             boss_pct = (st.session_state.boss_hp / current_boss_max_hp) * 100
-            st.write(f"**BOSS HP: {st.session_state.boss_hp} / {current_boss_max_hp}**")
+            st.write(f"**BOSS: {st.session_state.boss_hp} / {current_boss_max_hp}**")
             st.markdown(f"<div class='hp-bar'><div class='hp-fill' style='width:{boss_pct}%; background:#ff4b4b;'></div></div>", unsafe_allow_html=True)
 
         if st.session_state.boss_hp <= 0:
             st.balloons(); c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), 100))
-            conn.commit(); st.success("Boss Defeated! +100 XP")
+            conn.commit(); st.success("Victory! +100 XP")
             if st.button("SPAWN NEXT"): st.session_state.boss_hp = 100 + ((user_level+1)*25); st.session_state.player_hp=100; st.rerun()
         elif st.session_state.player_hp <= 0:
             st.error("💀 DEFEATED"); 
@@ -163,8 +168,8 @@ if st.session_state.logged_in:
         else:
             if 'bq' not in st.session_state: st.session_state.bq = random.choice(BOSS_POOL)
             st.markdown(f"<div class='gaming-card'><h3>{st.session_state.bq['q']}</h3></div>", unsafe_allow_html=True)
-            ans = st.radio("SELECT ATTACK:", st.session_state.bq['o'], horizontal=True)
-            if st.button("🔥 LAUNCH"):
+            ans = st.radio("CHOOSE:", st.session_state.bq['o'], horizontal=True)
+            if st.button("🔥 ATTACK"):
                 if ans == st.session_state.bq['a']:
                     st.session_state.boss_hp -= 40
                 else:
@@ -176,7 +181,7 @@ if st.session_state.logged_in:
 
     # --- SHOP ---
     elif page == "🛒 Shop":
-        st.markdown("<h1 style='font-family:Bungee;'>ULTRA SHOP</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='font-family:Bungee;'>SHOP</h1>", unsafe_allow_html=True)
         if st.button("Buy Shield (50 XP)"):
             if txp >= 50:
                 c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), -50))
@@ -185,7 +190,6 @@ if st.session_state.logged_in:
 
     # --- LEADERBOARD ---
     elif page == "🏆 Leaderboard":
-        st.title("GLOBAL RANKINGS")
+        st.title("RANKINGS")
         data = c.execute("SELECT u.username, SUM(p.xp) as total FROM progress p JOIN users u ON p.email = u.email GROUP BY u.email ORDER BY total DESC").fetchall()
         for i, row in enumerate(data): st.write(f"#{i+1} {row[0]} - {row[1]} XP")
-
