@@ -7,7 +7,7 @@ from datetime import date
 DEV_MODE = True
 # =====================
 
-# ---------- DB ----------
+# ---------- DATABASE ----------
 conn = sqlite3.connect("english_guru_fun.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -15,19 +15,22 @@ c.execute("CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TE
 c.execute("CREATE TABLE IF NOT EXISTS progress (email TEXT, date TEXT, xp INTEGER)")
 conn.commit()
 
-# ---------- SESSION ----------
-for k, v in {
+# ---------- SESSION INIT (CRASH-SAFE) ----------
+defaults = {
     "logged_in": False,
     "combo": 0,
     "boss_hp": 120,
     "player_hp": 100,
     "power": 3,
-    "chest": None
-}.items():
+    "chest": None,
+    "lucky": False
+}
+
+for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ---------- DEV LOGIN ----------
+# ---------- DEV AUTO LOGIN ----------
 if DEV_MODE and not st.session_state.logged_in:
     st.session_state.logged_in = True
     st.session_state.email = "test@guru.com"
@@ -77,13 +80,12 @@ if page == "🎓 Training":
     st.subheader("🔥 Training Arena")
 
     if "q" not in st.session_state:
-        q = random.choice(QUESTIONS)
-        lucky = random.choice([True, False, False])
-        st.session_state.q = q
-        st.session_state.lucky = lucky
+        st.session_state.q = random.choice(QUESTIONS)
+        st.session_state.lucky = random.choice([True, False, False])
 
     q, opts, ans = st.session_state.q
     st.markdown(f"### {q}")
+
     if st.session_state.lucky:
         st.info("🍀 LUCKY QUESTION → DOUBLE XP!")
 
