@@ -1,107 +1,66 @@
 import streamlit as st
-import random
-import time
 
-# --- INITIALIZATION ---
+# --- PAGE SETUP ---
+st.set_page_config(page_title="English Guru", page_icon="📝")
+
+# Data save karne ke liye
 if 'xp' not in st.session_state: st.session_state.xp = 0
-if 'energy' not in st.session_state: st.session_state.energy = 100
-if 'gems' not in st.session_state: st.session_state.gems = 0
+if 'name' not in st.session_state: st.session_state.name = "Warrior"
 
-# --- NEON UI ---
-st.set_page_config(page_title="Neon English Warrior", layout="wide")
-
+# --- SIMPLE STYLE ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Roboto:wght@300;700&display=swap');
-    
-    .stApp { background: radial-gradient(circle, #1a1a2e, #16213e, #0f3460); color: #e94560; }
-    h1, h2, h3 { font-family: 'Bungee', cursive; color: #00f2ff; text-shadow: 2px 2px #ff0055; }
-    
-    .stat-box {
-        background: rgba(255, 255, 255, 0.05);
-        border: 2px solid #00f2ff;
-        border-radius: 20px;
-        padding: 15px;
-        text-align: center;
-        box-shadow: 0 0 15px #00f2ff;
-    }
-    .question-box {
-        background: #16213e;
-        border-left: 10px solid #e94560;
-        padding: 30px;
-        font-size: 24px;
-        border-radius: 10px;
-        margin: 20px 0;
-    }
+    .main { background-color: #f0f2f6; }
     .stButton>button {
-        background: #e94560 !important;
-        color: white !important;
-        font-family: 'Bungee';
-        font-size: 20px !important;
-        transition: 0.3s;
-        border: none !important;
         width: 100%;
+        height: 3em;
+        background-color: #007bff;
+        color: white;
+        border-radius: 10px;
     }
-    .stButton>button:hover { transform: scale(1.05); box-shadow: 0 0 20px #e94560; }
+    .score-box {
+        background-color: white;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #ddd;
+        text-align: center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER STATS ---
-st.title("⚡ NEON ENGLISH WARRIOR")
-c1, c2, c3 = st.columns(3)
-with c1: st.markdown(f"<div class='stat-box'><h3>🏆 XP</h3><h1>{st.session_state.xp}</h1></div>", unsafe_allow_html=True)
-with c2: st.markdown(f"<div class='stat-box'><h3>⚡ ENERGY</h3><h1>{st.session_state.energy}%</h1></div>", unsafe_allow_html=True)
-with c3: st.markdown(f"<div class='stat-box'><h3>💎 GEMS</h3><h1>{st.session_state.gems}</h1></div>", unsafe_allow_html=True)
+# --- SIDEBAR ---
+with st.sidebar:
+    st.title("👤 Profile")
+    st.session_state.name = st.text_input("Aapka Naam:", st.session_state.name)
+    st.write(f"### ⭐ XP: {st.session_state.xp}")
+    st.divider()
+    page = st.radio("Kahan jana hai?", ["Home", "Practice Quiz"])
 
-st.write("---")
+# --- PAGES ---
+if page == "Home":
+    st.title(f"Welcome, {st.session_state.name}! 👋")
+    st.markdown(f"""
+    <div class="score-box">
+        <h3>Aapka Current Score</h3>
+        <h1 style="color: #007bff;">{st.session_state.xp} XP</h1>
+    </div>
+    """, unsafe_allow_html=True)
+    st.write("\n\nSide menu se **Practice Quiz** chuno aur points kamao!")
 
-# --- MAIN GAMEPLAY ---
-tab1, tab2, tab3 = st.tabs(["🔥 FIGHT", "🏪 SHOP", "🏆 LEADERBOARD"])
+elif page == "Practice Quiz":
+    st.title("✍️ Quick Quiz")
+    
+    # Simple Question
+    st.subheader("What is the opposite of 'HAPPY'?")
+    ans = st.radio("Sahi jawab chuno:", ["Angry", "Sad", "Funny"])
+    
+    if st.button("Check Jawab"):
+        if ans == "Sad":
+            st.session_state.xp += 10
+            st.success("Bilkul Sahi! +10 XP mil gaye.")
+            st.balloons()
+        else:
+            st.error("Galat jawab! Phir se koshish karo.")
 
-with tab1:
-    if st.session_state.energy <= 0:
-        st.error("Energy Khatam! Shop se energy drink lo.")
-    else:
-        st.subheader("👾 Monster is attacking! Solve to Hit!")
-        
-        words = [
-            {"word": "GIGANTIC", "options": ["Small", "Huge", "Weak"], "answer": "Huge"},
-            {"word": "CURIOUS", "options": ["Bored", "Eager to know", "Angry"], "answer": "Eager to know"},
-            {"word": "ANXIOUS", "options": ["Happy", "Worried", "Sleepy"], "answer": "Worried"}
-        ]
-        
-        current = random.choice(words)
-        st.markdown(f"<div class='question-box'>What is the meaning of: <b>{current['word']}</b>?</div>", unsafe_allow_html=True)
-        
-        choice = st.radio("Choose your weapon:", current['options'], horizontal=True)
-        
-        if st.button("💥 LAUNCH ATTACK"):
-            with st.spinner('Attacking...'):
-                time.sleep(0.5)
-                if choice == current['answer']:
-                    st.session_state.xp += 50
-                    st.session_state.energy -= 10
-                    st.session_state.gems += 1
-                    st.balloons()
-                    st.success(f"CRITICAL HIT! +50 XP | +1 Gem")
-                else:
-                    st.session_state.energy -= 20
-                    st.error("MISS! Monster ne aapko hit kiya. -20 Energy")
-            st.rerun()
-
-with tab2:
-    st.subheader("🏪 Neon Shop")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.write("🧪 Energy Potion (Cost: 2 Gems)")
-        if st.button("Buy Energy"):
-            if st.session_state.gems >= 2:
-                st.session_state.gems -= 2
-                st.session_state.energy = 100
-                st.success("Energy Full!")
-            else:
-                st.warning("Gems kam hain!")
-
-with tab3:
-    st.subheader("🏆 Global Warriors")
-    st.table([{"Rank": "1", "Name": "Rohan", "XP": "5500"}, {"Rank": "2", "Name": "You", "XP": st.session_state.xp}])
+    if st.button("Naya Sawal"):
+        st.rerun()
