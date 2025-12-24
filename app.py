@@ -82,7 +82,6 @@ def check_training_answer(user_choice, correct_answer):
     if user_choice == correct_answer:
         st.session_state.combo += 1
         gain = 10 if st.session_state.combo < 3 else 20
-        # Hero class bonus
         if st.session_state.hero_class == "Grammar Knight": gain += 5
         c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", 
                  (st.session_state.email, str(date.today()), gain))
@@ -163,11 +162,20 @@ if st.session_state.logged_in:
             st.write(f"**BOSS: {st.session_state.boss_hp} / {current_boss_max_hp}**")
             st.markdown(f"<div class='hp-bar'><div class='hp-fill' style='width:{boss_pct}%; background:#ff4b4b;'></div></div>", unsafe_allow_html=True)
         if st.session_state.boss_hp <= 0:
-            st.balloons(); c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), 100)); conn.commit(); st.success("Victory! +100 XP")
+            st.balloons()
+            c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), 100))
+            conn.commit()
+            st.success("Victory! +100 XP")
             unlock_achievement("Boss Slayer")
-            if st.button("SPAWN NEXT"): st.session_state.boss_hp = 100 + ((user_level+1)*25); st.session_state.player_hp=100; st.rerun()
+            if st.button("SPAWN NEXT"):
+                st.session_state.boss_hp = 100 + ((user_level+1)*25)
+                st.session_state.player_hp=100
+                st.rerun()
         elif st.session_state.player_hp <= 0:
-            st.error("💀 DEFEATED"); if st.button("REVIVE"): st.session_state.player_hp=100; st.rerun()
+            st.error("💀 DEFEATED")
+            if st.button("REVIVE"):
+                st.session_state.player_hp=100
+                st.rerun()
         else:
             if 'bq' not in st.session_state: st.session_state.bq = random.choice(BOSS_POOL)
             st.markdown(f"<div class='gaming-card'><h3>{st.session_state.bq['q']}</h3></div>", unsafe_allow_html=True)
@@ -180,7 +188,8 @@ if st.session_state.logged_in:
                         c.execute("UPDATE inventory SET count=count-1 WHERE email=? AND item='🛡️ Mystic Shield'", (st.session_state.email,))
                         conn.commit()
                     else: st.session_state.player_hp -= boss_dmg
-                del st.session_state.bq; st.rerun()
+                del st.session_state.bq
+                st.rerun()
 
     # --- SHOP ---
     elif page == "🛒 Shop":
@@ -189,7 +198,8 @@ if st.session_state.logged_in:
             if txp >= 50:
                 c.execute("INSERT INTO progress (email, date, xp) VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), -50))
                 c.execute("INSERT INTO inventory (email, item, count) VALUES (?, '🛡️ Mystic Shield', 1) ON CONFLICT(email, item) DO UPDATE SET count=count+1", (st.session_state.email,))
-                conn.commit(); st.success("Bought!"); st.rerun()
+                conn.commit(); st.success("Bought!")
+                st.rerun()
 
     # --- LEADERBOARD ---
     elif page == "🏆 Leaderboard":
