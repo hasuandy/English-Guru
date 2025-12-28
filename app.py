@@ -83,21 +83,82 @@ elif page == "🎓 Training":
 
 elif page == "⚔️ Boss Battle":
         st.markdown("<h1 style='color:#ff4b4b; font-family:Bungee; text-align:center;'>👹 MONSTER ARENA</h1>", unsafe_allow_html=True)
+        
+        # --- HP BARS FIX (For Streamlit Cloud Error) ---
         col_p, col_b = st.columns(2)
         
-        # Hero Progress
         with col_p:
+            # Player HP Progress (Safe 0.0 to 1.0)
             p_val = max(0.0, min(st.session_state.player_hp / 100.0, 1.0))
-            st.write(f"HERO: {int(p_val * 100)}%")
+            st.write(f"🛡️ HERO: {int(p_val * 100)}%")
             st.progress(p_val)
             
-        # Boss Progress (Safe Version)
         with col_b:
+            # Boss HP Progress (Safe 0.0 to 1.0)
             boss_max = 100 + (user_level * 25)
-            # HP ko limit mein rakhne ke liye formula
             b_val = max(0.0, min(st.session_state.boss_hp / boss_max, 1.0))
-            st.write(f"BOSS: {int(b_val * 100)}%")
+            st.write(f"👾 BOSS (Lvl {user_level}): {int(b_val * 100)}%")
             st.progress(b_val)
+        
+        # --- BATTLE LOGIC ---
+        if st.session_state.boss_hp <= 0:
+            st.balloons()
+            st.success("✨ VICTORY! Boss Defeated!")
+            if st.button("Spawn Next Monster ⚔️"):
+                st.session_state.boss_hp = 100 + ((user_level + 1) * 25)
+                st.session_state.player_hp = 100
+                st.rerun()
+                
+        elif st.session_state.player_hp <= 0:
+            st.error("💀 YOU DIED")
+            if st.button("Revive (Full HP)"):
+                st.session_state.player_hp = 100
+                st.rerun()
+        else:
+            # Question Card
+            if 'bq' not in st.session_state:
+                st.session_state.bq = random.choice(BOSS_POOL)
+            
+            st.markdown(f"<div class='main-card' style='text-align:center;'><h3>{st.session_state.bq['q']}</h3></div>", unsafe_allow_html=True)
+            ans = st.radio("Select Answer:", st.session_state.bq['o'], horizontal=True)
+            
+            st.write("---")
+            st.subheader("⚔️ CHOOSE YOUR ATTACK")
+            btn1, btn2, btn3 = st.columns(3)
+            
+            with btn1:
+                if st.button("🗡️ Quick Strike", use_container_width=True):
+                    if ans == st.session_state.bq['a']:
+                        st.session_state.boss_hp -= 30
+                        trigger_effects("correct")
+                    else:
+                        st.session_state.player_hp -= 15
+                        trigger_effects("wrong")
+                    del st.session_state.bq; st.rerun()
+
+            with btn2:
+                if user_level >= 3:
+                    if st.button("🔥 Fire Blast", use_container_width=True):
+                        if ans == st.session_state.bq['a']:
+                            st.session_state.boss_hp -= 60
+                            trigger_effects("correct")
+                        else:
+                            st.session_state.player_hp -= 30
+                        del st.session_state.bq; st.rerun()
+                else:
+                    st.button("🔒 Lvl 3 Required", disabled=True, use_container_width=True)
+
+            with btn3:
+                if user_level >= 5:
+                    if st.button("⚡ Thunder Strike", use_container_width=True):
+                        if ans == st.session_state.bq['a']:
+                            st.session_state.boss_hp = 0
+                            st.balloons()
+                        else:
+                            st.session_state.player_hp = 5
+                        del st.session_state.bq; st.rerun()
+                else:
+                    st.button("🔒 Lvl 5 Required", disabled=True, use_container_width=True)
         
 
 elif page == "🏆 Hall of Fame":
@@ -107,4 +168,5 @@ elif page == "🏆 Hall of Fame":
         av = f"https://api.dicebear.com/7.x/avataaars/svg?seed={row[0]}"
         st.markdown(f"<img src='{av}' width='40'> **{row[0]}** — {row[1]} XP", unsafe_allow_html=True)
         
+
 
