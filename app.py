@@ -1,6 +1,5 @@
 import streamlit as st
 import sqlite3
-import hashlib
 from datetime import date
 import random
 import time
@@ -24,105 +23,103 @@ def init_db():
 
 init_db()
 
-# --- Sounds Links ---
-CORRECT_SOUND = "https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"
-WRONG_SOUND = "https://www.myinstants.com/media/sounds/wrong-answer-sound-effect.mp3"
+# --- Sound URLs ---
+CORRECT_SND = "https://www.soundjay.com/buttons/sounds/button-3.mp3"
+WRONG_SND = "https://www.soundjay.com/buttons/sounds/button-10.mp3"
 
-def play_sound(url):
-    st.markdown(f'<audio src="{url}" autoplay style="display:none;"></audio>', unsafe_allow_html=True)
+# --- Animation & Sound Logic ---
+def trigger_effects(effect_type):
+    if effect_type == "correct":
+        st.markdown(f'<audio src="{CORRECT_SND}" autoplay></audio>', unsafe_allow_html=True)
+    elif effect_type == "wrong":
+        st.markdown(f'<audio src="{WRONG_SND}" autoplay></audio>', unsafe_allow_html=True)
+        # Screen Shake CSS
+        st.markdown("""
+            <script>
+            window.parent.document.querySelector('.stApp').animate([
+                { transform: 'translate(1px, 1px) rotate(0deg)' },
+                { transform: 'translate(-1px, -2px) rotate(-1deg)' },
+                { transform: 'translate(-3px, 0px) rotate(1deg)' },
+                { transform: 'translate(3px, 2px) rotate(0deg)' },
+                { transform: 'translate(1px, -1px) rotate(1deg)' },
+                { transform: 'translate(-1px, 2px) rotate(-1deg)' },
+                { transform: 'translate(-3px, 1px) rotate(0deg)' }
+            ], { duration: 100 });
+            </script>
+            """, unsafe_allow_html=True)
 
-# --- Data Pools ---
-TRAINING_DATA = [
-    {"q": "Antonym of 'ANCIENT'?", "o": ["Old", "Modern", "Heavy", "Small"], "a": "Modern"},
-    {"q": "Plural of 'Mouse'?", "o": ["Mouses", "Mice", "Micey", "Mice-s"], "a": "Mice"},
-    {"q": "Past tense of 'Go'?", "o": ["Goes", "Gone", "Went", "Going"], "a": "Went"},
-    {"q": "I ____ a student.", "o": ["is", "am", "are", "be"], "a": "am"}
-]
-
-BOSS_POOL = [
-    {"q": "Meaning of 'AMBIGUOUS'?", "o": ["Clear", "Uncertain", "Huge", "Bright"], "a": "Uncertain"},
-    {"q": "Meaning of 'EPHEMERAL'?", "o": ["Eternal", "Short-lived", "Heavy", "Dirty"], "a": "Short-lived"}
-]
+# --- Data ---
+TRAINING_DATA = [{"q": "Antonym of 'ANCIENT'?", "o": ["Old", "Modern", "Heavy", "Small"], "a": "Modern"}]
+BOSS_POOL = [{"q": "Meaning of 'AMBIGUOUS'?", "o": ["Clear", "Uncertain", "Huge", "Bright"], "a": "Uncertain"}]
 
 # --- Session State ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if 'theme' not in st.session_state: st.session_state.theme = "#00f2ff"
 if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 100
 if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
-if 'combo' not in st.session_state: st.session_state.combo = 0
 
 if DEV_MODE and not st.session_state.logged_in:
     st.session_state.logged_in, st.session_state.user, st.session_state.email = True, "Tester_Hero", "test@guru.com"
     c.execute("INSERT OR IGNORE INTO users VALUES (?,?,?)", (st.session_state.email, st.session_state.user, "123"))
     conn.commit()
 
-st.set_page_config(page_title="English Guru Pro", page_icon="🎓", layout="wide")
+# --- UI CONFIG ---
+st.set_page_config(page_title="English Guru Pro", page_icon="⚔️", layout="wide")
 
-# CSS Styling
-st.markdown(f"""
+st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
-    .stApp {{ background: #0e1117; color: white; font-family: 'Rajdhani', sans-serif; }}
-    .stat-card {{ background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; border-left: 5px solid {st.session_state.theme}; text-align: center; }}
-    .stat-value {{ font-family: 'Bungee'; font-size: 24px; color: {st.session_state.theme}; }}
+    @import url('https://fonts.googleapis.com/css2?family=Bungee&display=swap');
+    .stApp { background: #0e1117; color: white; }
+    .boss-card { background: linear-gradient(45deg, #4b0082, #000000); padding: 20px; border-radius: 15px; border: 2px solid red; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
-# Helper for Training
-def check_training_answer(user_choice, correct_answer):
-    if user_choice.replace("✨ ", "") == correct_answer:
-        st.session_state.combo += 1
-        play_sound(CORRECT_SOUND)
-        c.execute("INSERT INTO progress VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), 10))
-        conn.commit()
-        st.toast("✅ Shabaash!", icon="🔥")
-    else:
-        st.session_state.combo = 0
-        play_sound(WRONG_SOUND)
-        st.toast("❌ Galat Jawab!", icon="💀")
-    if 'current_tq' in st.session_state: del st.session_state.current_tq
-
-# --- MAIN APP ---
+# --- APP PAGES ---
 if st.session_state.logged_in:
-    txp = (c.execute("SELECT SUM(xp) FROM progress WHERE email = ?", (st.session_state.email,)).fetchone()[0] or 0)
-    user_level = 1 + (txp // 100)
-    
-    with st.sidebar:
-        st.markdown(f"<h1 style='font-family:Bungee; color:{st.session_state.theme};'>GURU V37</h1>", unsafe_allow_html=True)
-        page = st.radio("MENU", ["🏠 Dashboard", "🎓 Training", "⚔️ Boss Battle", "🏆 Hall of Fame"])
+    page = st.sidebar.radio("MENU", ["🏠 Dashboard", "🎓 Training", "⚔️ Boss Battle"])
 
-    # DASHBOARD
     if page == "🏠 Dashboard":
-        st.markdown(f"<h1 style='font-family:Bungee;'>DASHBOARD</h1>", unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1: st.markdown(f"<div class='stat-card'><small>LEVEL</small><div class='stat-value'>{user_level}</div></div>", unsafe_allow_html=True)
-        with col2: st.markdown(f"<div class='stat-card'><small>TOTAL XP</small><div class='stat-value'>{txp}</div></div>", unsafe_allow_html=True)
-        st.write("### Progress")
-        st.progress((txp % 100) / 100)
+        st.title("Welcome Hero!")
+        st.write("Click anywhere to enable sounds for this session! 🔊")
 
-    # TRAINING (SOUNDS ENABLED)
     elif page == "🎓 Training":
-        st.title("🎓 Training")
-        if 'current_tq' not in st.session_state: st.session_state.current_tq = random.choice(TRAINING_DATA)
-        tq = st.session_state.current_tq
+        st.title("Quick Practice")
+        tq = TRAINING_DATA[0]
         st.subheader(tq['q'])
         for opt in tq['o']:
-            if st.button(f"✨ {opt}", use_container_width=True):
-                check_training_answer(opt, tq['a'])
-                time.sleep(1) # Sound play hone ka waqt
+            if st.button(opt):
+                if opt == tq['a']:
+                    trigger_effects("correct")
+                    st.success("Correct!")
+                else:
+                    trigger_effects("wrong")
+                    st.error("Wrong!")
+                time.sleep(1)
                 st.rerun()
 
-    # BOSS BATTLE
     elif page == "⚔️ Boss Battle":
-        st.title("⚔️ Boss Battle")
-        # Same Boss logic as before but with play_sound(CORRECT_SOUND) on success
-        st.info("Boss is waiting for your move!")
-        # (Boss battle code goes here...)
+        st.markdown("<h1 style='color:red; font-family:Bungee;'>⚔️ BOSS FIGHT</h1>", unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        col1.metric("HERO HP", f"{st.session_state.player_hp}%")
+        col2.metric("BOSS HP", f"{st.session_state.boss_hp}%")
 
-    # HALL OF FAME (AVATARS)
-    elif page == "🏆 Hall of Fame":
-        st.markdown("<h1 style='font-family:Bungee; text-align:center;'>🏆 HALL OF FAME</h1>", unsafe_allow_html=True)
-        data = c.execute("SELECT u.username, SUM(p.xp) as total FROM progress p JOIN users u ON p.email = u.email GROUP BY u.email ORDER BY total DESC").fetchall()
-        for i, row in enumerate(data, 1):
-            av = f"https://api.dicebear.com/7.x/avataaars/svg?seed={row[0]}"
-            st.markdown(f"<img src='{av}' width='40'> **{row[0]}** - {row[1]} XP", unsafe_allow_html=True)
+        if st.session_state.boss_hp <= 0:
+            st.balloons()
+            st.success("YOU WON!")
+            if st.button("Reset"): st.session_state.boss_hp = 100; st.session_state.player_hp = 100; st.rerun()
+        else:
+            bq = BOSS_POOL[0]
+            st.markdown(f"<div class='boss-card'><h2>{bq['q']}</h2></div>", unsafe_allow_html=True)
+            ans = st.radio("Choose Weapon:", bq['o'])
+            
+            if st.button("💥 ATTACK BOSS"):
+                if ans == bq['a']:
+                    st.session_state.boss_hp -= 25
+                    trigger_effects("correct")
+                    st.toast("CRITICAL HIT!")
+                else:
+                    st.session_state.player_hp -= 20
+                    trigger_effects("wrong") # Isme screen shake effect chalega
+                    st.toast("BOSS ATTACKED YOU!")
+                time.sleep(1)
+                st.rerun()
