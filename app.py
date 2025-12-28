@@ -60,7 +60,7 @@ if page == "🏠 Dashboard":
     st.title("🛡️ HERO DASHBOARD")
     st.metric("Level", user_level)
     st.metric("Total XP", txp)
-    st.info("💡 Sound ke liye screen par ek baar click karein!")
+    st.info("💡 Awaaz sunne ke liye screen par ek baar click karein!")
 
 elif page == "🎓 Training":
     st.title("🎓 Practice Area")
@@ -80,8 +80,10 @@ elif page == "🎓 Training":
 elif page == "⚔️ Boss Battle":
     st.markdown("<h1 style='color:red; font-family:Bungee; text-align:center;'>👹 BOSS ARENA</h1>", unsafe_allow_html=True)
     
-    # --- ERROR FIX: Normalizing values between 0.0 and 1.0 ---
+    # --- FIXED PROGRESS BARS ---
     boss_max_hp = 100 + (user_level * 25)
+    
+    # Ye wo safe math hai jo error ko rokega
     p_safe = max(0.0, min(st.session_state.player_hp / 100.0, 1.0))
     b_safe = max(0.0, min(st.session_state.boss_hp / boss_max_hp, 1.0))
     
@@ -104,8 +106,8 @@ elif page == "⚔️ Boss Battle":
         st.image(BOSS_GIF, width=200)
         q = TRAINING_DATA[0]
         st.subheader(q['q'])
-        ans = st.radio("Weapon of Choice:", q['o'], horizontal=True)
-        if st.button("🔥 ATTACK"):
+        ans = st.radio("Choose Your Attack Weapon:", q['o'], horizontal=True)
+        if st.button("🔥 EXECUTE ATTACK"):
             if ans == q['a']:
                 st.session_state.boss_hp -= 30
                 trigger_effects("correct")
@@ -118,4 +120,4 @@ elif page == "🏆 Hall of Fame":
     st.title("🏆 Leaderboard")
     data = c.execute("SELECT username, SUM(xp) as s FROM progress p JOIN users u ON p.email=u.email GROUP BY u.email ORDER BY s DESC").fetchall()
     for i, row in enumerate(data, 1):
-        st.write(f"#{i} {row[0]} - {row[1]} XP")
+        st.write(f"👑 #{i} {row[0]} - {row[1]} XP")
