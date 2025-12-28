@@ -1,129 +1,206 @@
 import streamlit as st
 import sqlite3
+import hashlib
 from datetime import date
 import random
 import time
 
 # ==========================================
-# 🛠️ DATABASE SETUP
+# 🛠️ SETTINGS & DATABASE
 # ==========================================
+DEV_MODE = True 
 DB_NAME = 'english_guru_pro_v37.db'
+
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 c = conn.cursor()
 
 def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT, password TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS progress (email TEXT, date TEXT, xp INTEGER)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS dictionary (email TEXT, word TEXT, meaning TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS inventory (email TEXT, item TEXT, count INTEGER, UNIQUE(email, item))''') 
     c.execute('''CREATE TABLE IF NOT EXISTS daily_tasks (email TEXT, task_date TEXT, completed INTEGER)''')
     conn.commit()
+
 init_db()
 
-# ==========================================
-# 📚 QUESTION BANK (50+ QUESTIONS)
-# ==========================================
-BIG_QUESTION_POOL = [
-    {"q": "Meaning of 'ABANDON'?", "o": ["To start", "To leave", "To keep", "To find"], "a": "To leave"},
-    {"q": "Meaning of 'GENEROUS'?", "o": ["Selfish", "Kind", "Poor", "Angry"], "a": "Kind"},
-    {"q": "Meaning of 'PRECISE'?", "o": ["Vague", "Exact", "Wrong", "Long"], "a": "Exact"},
-    {"q": "Meaning of 'RELUCTANT'?", "o": ["Willing", "Unwilling", "Happy", "Eager"], "a": "Unwilling"},
-    {"q": "Synonym of 'FAST'?", "o": ["Slow", "Quick", "Steady", "Heavy"], "a": "Quick"},
-    {"q": "Antonym of 'ANCIENT'?", "o": ["Old", "Modern", "Classic", "Stone"], "a": "Modern"},
-    {"q": "Past tense of 'EAT'?", "o": ["Eated", "Ate", "Eating", "Eats"], "a": "Ate"},
-    {"q": "Plural of 'CHILD'?", "o": ["Childs", "Children", "Childrens", "Childes"], "a": "Children"},
-    {"q": "Correct spelling?", "o": ["Receive", "Recieve", "Receve", "Riceive"], "a": "Receive"},
-    {"q": "I ____ to school every day.", "o": ["go", "goes", "going", "gone"], "a": "go"},
-    {"q": "Antonym of 'STRONG'?", "o": ["Hard", "Weak", "Tough", "Brave"], "a": "Weak"},
-    {"q": "Past tense of 'GO'?", "o": ["Goes", "Gone", "Went", "Going"], "a": "Went"}
+# --- Data Pools ---
+TRAINING_DATA = [
+    {"q": "Antonym of 'ANCIENT'?", "o": ["Old", "Modern", "Heavy", "Small"], "a": "Modern"},
+    {"q": "Plural of 'Mouse'?", "o": ["Mouses", "Mice", "Micey", "Mice-s"], "a": "Mice"},
+    {"q": "Past tense of 'Go'?", "o": ["Goes", "Gone", "Went", "Going"], "a": "Went"},
+    {"q": "I ____ a student.", "o": ["is", "am", "are", "be"], "a": "am"}
 ]
 
-# ==========================================
-# 🎨 GAMER CSS
-# ==========================================
-st.set_page_config(page_title="GURU AI PRO", page_icon="🎮", layout="wide")
+BOSS_POOL = [
+    {"q": "Meaning of 'AMBIGUOUS'?", "o": ["Clear", "Uncertain", "Huge", "Bright"], "a": "Uncertain"},
+    {"q": "Meaning of 'EPHEMERAL'?", "o": ["Eternal", "Short-lived", "Heavy", "Dirty"], "a": "Short-lived"},
+    {"q": "Synonym of 'METICULOUS'?", "o": ["Careless", "Precise", "Fast", "Noisy"], "a": "Precise"}
+]
 
-st.markdown("""
+# --- Session State ---
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'theme' not in st.session_state: st.session_state.theme = "#00f2ff"
+if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 100
+if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
+if 'combo' not in st.session_state: st.session_state.combo = 0
+
+if DEV_MODE and not st.session_state.logged_in:
+    st.session_state.logged_in, st.session_state.user, st.session_state.email = True, "Tester_Hero", "test@guru.com"
+    # Ensure user exists in DB for leaderboard
+    c.execute("INSERT OR IGNORE INTO users VALUES (?,?,?)", (st.session_state.email, st.session_state.user, "123"))
+    conn.commit()
+
+# --- UI CONFIG ---
+st.set_page_config(page_title="English Guru Pro", page_icon="🎓", layout="wide")
+
+st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@600&display=swap');
-    .stApp { background-color: #0b0e14; color: white; font-family: 'Rajdhani', sans-serif; }
-    .neon-text { color: #00f2ff; font-family: 'Bungee'; text-shadow: 0 0 15px #00f2ff; }
-    .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; border-top: 4px solid #00f2ff; text-align: center; margin-bottom: 10px; }
-    .stat-val { font-family: 'Bungee'; font-size: 30px; color: #00f2ff; }
-    .stButton>button { background: transparent !important; color: #00f2ff !important; border: 2px solid #00f2ff !important; border-radius: 8px !important; font-family: 'Bungee' !important; width: 100%; }
-    .stButton>button:hover { background: #00f2ff !important; color: #0b0e14 !important; box-shadow: 0 0 20px #00f2ff; }
+    .stApp {{ background: #0e1117; color: white; font-family: 'Rajdhani', sans-serif; }}
+    .stat-card {{ background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; border-left: 5px solid {st.session_state.theme}; text-align: center; }}
+    .stat-value {{ font-family: 'Bungee'; font-size: 24px; color: {st.session_state.theme}; }}
+    .main-card {{ background: linear-gradient(145deg, #1e2130, #161922); padding: 25px; border-radius: 20px; border: 1px solid #333; }}
+    .stButton>button {{ background: linear-gradient(45deg, {st.session_state.theme}, #7000ff); color: white !important; font-family: 'Bungee'; border: none; border-radius: 10px; transition: 0.3s; }}
+    .stButton>button:hover {{ transform: scale(1.05); box-shadow: 0 0 15px {st.session_state.theme}; }}
     </style>
     """, unsafe_allow_html=True)
 
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in, st.session_state.user, st.session_state.email = True, "STEVNATION", "player@guru.ai"
+# --- Helper Functions ---
+def get_total_xp(email):
+    c.execute("SELECT SUM(xp) FROM progress WHERE email = ?", (email,))
+    res = c.fetchone()[0]
+    return res if res else 0
 
-if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 100
-if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
-
-txp = (c.execute("SELECT SUM(xp) FROM progress WHERE email = ?", (st.session_state.email,)).fetchone()[0] or 0)
-user_level = 1 + (txp // 100)
-
-with st.sidebar:
-    st.markdown("<h2 class='neon-text'>GURU AI</h2>", unsafe_allow_html=True)
-    st.image(f"https://api.dicebear.com/7.x/pixel-art/svg?seed={st.session_state.user}", width=80)
-    menu = st.radio("MENU", ["🖥️ Dashboard", "🎯 Training", "⚔️ Boss Battle"])
-
-# ==========================================
-# 🖥️ DASHBOARD & 🎯 TRAINING (Same as before)
-# ==========================================
-if menu == "🖥️ Dashboard":
-    st.markdown("<h1 class='neon-text'>COMMAND CENTER</h1>", unsafe_allow_html=True)
-    st.markdown(f"<div class='card'><small>TOTAL XP</small><div class='stat-val'>{txp}</div></div>", unsafe_allow_html=True)
-    st.progress((txp % 100) / 100)
-
-elif menu == "🎯 Training":
-    st.markdown("<h1 class='neon-text'>TRAINING ZONE</h1>", unsafe_allow_html=True)
-    if 'current_q' not in st.session_state: st.session_state.current_q = random.choice(BIG_QUESTION_POOL)
-    q = st.session_state.current_q
-    st.markdown(f"<div class='card'><h2>{q['q']}</h2></div>", unsafe_allow_html=True)
-    cols = st.columns(2)
-    for i, opt in enumerate(q['o']):
-        with cols[i%2]:
-            if st.button(opt, key=f"t_{i}"):
-                if opt == q['a']:
-                    st.toast("CORRECT!"); c.execute("INSERT INTO progress VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), 10))
-                    conn.commit(); time.sleep(0.5); del st.session_state.current_q; st.rerun()
-
-# ==========================================
-# ⚔️ BOSS BATTLE (FIXED WITH IMAGE)
-# ==========================================
-elif menu == "⚔️ Boss Battle":
-    st.markdown("<h1 class='neon-text' style='text-align:center;'>BOSS ARENA</h1>", unsafe_allow_html=True)
-    
-    # HP Bars
-    col_p, col_mid, col_b = st.columns([2, 1, 2])
-    col_p.markdown(f"<div class='card' style='border-top-color:#ff4b4b;'><b>HERO</b><div class='stat-val'>{st.session_state.player_hp}%</div></div>", unsafe_allow_html=True)
-    col_mid.markdown("<h1 style='text-align:center; font-size:60px;'>⚔️</h1>", unsafe_allow_html=True)
-    col_b.markdown(f"<div class='card'><b>BOSS</b><div class='stat-val'>{st.session_state.boss_hp}%</div></div>", unsafe_allow_html=True)
-
-    if st.session_state.boss_hp <= 0:
-        st.balloons(); st.success("VICTORY!"); st.button("NEXT BOSS", on_click=lambda: setattr(st.session_state, 'boss_hp', 100))
-    elif st.session_state.player_hp <= 0:
-        st.error("YOU DIED!"); st.button("RESPAWN", on_click=lambda: setattr(st.session_state, 'player_hp', 100))
+def check_training_answer(user_choice, correct_answer):
+    if user_choice.replace("✨ ", "") == correct_answer:
+        st.session_state.combo += 1
+        gain = 10 if st.session_state.combo < 3 else 20
+        c.execute("INSERT INTO progress VALUES (?, ?, ?)", (st.session_state.email, str(date.today()), gain))
+        conn.commit()
+        st.toast(f"✅ Correct! +{gain} XP", icon="🔥")
     else:
-        # --- YE RAHA IMAGE WALA PART ---
-        st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-        # Aap yahan koi bhi GIF ya Image link dal sakte hain
-        st.image("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJmZzZ4eXN6ZzZ4eXN6ZzZ4eXN6ZzZ4eXN6ZzZ4eXN6JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/3o7TKMGpxxXLyKHzvW/giphy.gif", width=300)
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.session_state.combo = 0
+        st.toast(f"❌ Wrong! Correct: {correct_answer}", icon="💀")
+    if 'current_tq' in st.session_state: del st.session_state.current_tq
 
-        # Question below image
-        if 'bq' not in st.session_state: st.session_state.bq = random.choice(BIG_QUESTION_POOL)
-        bq = st.session_state.bq
-        
-        st.markdown(f"<div class='card'><h3>{bq['q']}</h3></div>", unsafe_allow_html=True)
-        
-        ans = st.radio("CHOOSE YOUR ATTACK:", bq['o'], horizontal=True)
-        if st.button("🔥 CAST SPELL"):
-            if ans == bq['a']:
-                st.session_state.boss_hp -= 25
-                st.toast("HIT! -25 HP", icon="💥")
-            else:
-                st.session_state.player_hp -= 20
-                st.toast("MISSED! BOSS ATTACKED YOU", icon="🛑")
-            del st.session_state.bq
+# ==========================================
+# 🚀 MAIN APP LOGIC
+# ==========================================
+if st.session_state.logged_in:
+    txp = get_total_xp(st.session_state.email)
+    user_level = 1 + (txp // 100)
+    xp_in_level = txp % 100
+    
+    with st.sidebar:
+        st.markdown(f"<h1 style='font-family:Bungee; color:{st.session_state.theme};'>GURU V37</h1>", unsafe_allow_html=True)
+        st.write(f"🎖️ Level: {user_level} | 🔥 Combo: {st.session_state.combo}")
+        page = st.radio("MENU", ["🏠 Dashboard", "🎓 Training", "⚔️ Boss Battle", "🛒 Shop", "🏆 Hall of Fame"])
+        if st.button("LOGOUT"):
+            st.session_state.logged_in = False
             st.rerun()
+
+    # --- 🏠 DASHBOARD ---
+    if page == "🏠 Dashboard":
+        st.markdown(f"<h1 style='font-family:Bungee;'>HERO COMMAND CENTER</h1>", unsafe_allow_html=True)
+        col1, col2, col3, col4 = st.columns(4)
+        with col1: st.markdown(f"<div class='stat-card'><small>LEVEL</small><div class='stat-value'>{user_level}</div></div>", unsafe_allow_html=True)
+        with col2: st.markdown(f"<div class='stat-card'><small>TOTAL XP</small><div class='stat-value'>{txp}</div></div>", unsafe_allow_html=True)
+        with col3: st.markdown(f"<div class='stat-card' style='border-left-color:#ff4b4b;'><small>STREAK</small><div class='stat-value'>🔥 5 DAYS</div></div>", unsafe_allow_html=True)
+        with col4: 
+            c.execute("SELECT COUNT(*) FROM dictionary WHERE email=?", (st.session_state.email,))
+            st.markdown(f"<div class='stat-card' style='border-left-color:#7000ff;'><small>WORDS</small><div class='stat-value'>{c.fetchone()[0]}</div></div>", unsafe_allow_html=True)
+
+        st.write("### 🎯 Level Progress")
+        st.progress(xp_in_level / 100)
+        
+        st.write("")
+        c_left, c_right = st.columns([2, 1])
+        with c_left:
+            st.subheader("📜 Recent Missions")
+            history = c.execute("SELECT date, xp FROM progress WHERE email=? ORDER BY rowid DESC LIMIT 3", (st.session_state.email,)).fetchall()
+            for d, x in history: st.info(f"📅 {d}: Earned {x} XP")
+        with c_right:
+            st.subheader("🎁 Daily Gift")
+            today = str(date.today())
+            c.execute("SELECT completed FROM daily_tasks WHERE email=? AND task_date=?", (st.session_state.email, today))
+            if not c.fetchone():
+                if st.button("CLAIM 50 XP"):
+                    c.execute("INSERT INTO daily_tasks VALUES (?, ?, ?)", (st.session_state.email, today, 1))
+                    c.execute("INSERT INTO progress VALUES (?, ?, ?)", (st.session_state.email, today, 50))
+                    conn.commit(); st.balloons(); st.rerun()
+            else: st.success("Gift Claimed!")
+
+    # --- 🎓 TRAINING ---
+    elif page == "🎓 Training":
+        st.markdown(f"<h1 style='font-family:Bungee;'>🎓 TRAINING ZONE</h1>", unsafe_allow_html=True)
+        t1, t2 = st.tabs(["🎯 MCQs", "📖 DICTIONARY"])
+        with t1:
+            if 'current_tq' not in st.session_state: st.session_state.current_tq = random.choice(TRAINING_DATA)
+            tq = st.session_state.current_tq
+            st.markdown(f"<div style='background:rgba(255,255,255,0.05); padding:30px; border-radius:20px; border:2px solid {st.session_state.theme}; text-align:center;'><h2>{tq['q']}</h2></div>", unsafe_allow_html=True)
+            st.write("")
+            cols = st.columns(2)
+            for i, opt in enumerate(tq['o']):
+                with cols[i%2]: 
+                    if st.button(f"✨ {opt}", key=f"opt_{i}", use_container_width=True):
+                        check_training_answer(opt, tq['a']); st.rerun()
+        with t2:
+            st.subheader("Add New Word")
+            w = st.text_input("Word")
+            m = st.text_input("Meaning")
+            if st.button("SAVE WORD"):
+                if w and m:
+                    c.execute("INSERT INTO dictionary VALUES (?,?,?)", (st.session_state.email, w, m))
+                    conn.commit(); st.success("Added!")
+
+    # --- ⚔️ BOSS BATTLE ---
+    elif page == "⚔️ Boss Battle":
+        st.markdown("<h1 style='color:#ff4b4b; font-family:Bungee; text-align:center;'>👹 MONSTER ARENA</h1>", unsafe_allow_html=True)
+        col_p, col_b = st.columns(2)
+        with col_p:
+            st.write(f"HERO: {st.session_state.player_hp}%")
+            st.progress(st.session_state.player_hp / 100)
+        with col_b:
+            boss_max = 100 + (user_level * 25)
+            st.write(f"BOSS: {int((st.session_state.boss_hp/boss_max)*100)}%")
+            st.progress(st.session_state.boss_hp / boss_max)
+        
+        if st.session_state.boss_hp <= 0:
+            st.balloons(); st.success("Victory!"); st.button("SPAWN NEXT", on_click=lambda: setattr(st.session_state, 'boss_hp', 150))
+        elif st.session_state.player_hp <= 0:
+            st.error("Defeated!"); st.button("REVIVE", on_click=lambda: setattr(st.session_state, 'player_hp', 100))
+        else:
+            if 'bq' not in st.session_state: st.session_state.bq = random.choice(BOSS_POOL)
+            st.markdown(f"<div class='main-card' style='text-align:center;'><h3>{st.session_state.bq['q']}</h3></div>", unsafe_allow_html=True)
+            ans = st.radio("Select Answer:", st.session_state.bq['o'], horizontal=True)
+            if st.button("🔥 ATTACK"):
+                if ans == st.session_state.bq['a']:
+                    st.session_state.boss_hp -= 40; st.toast("Hit!")
+                else:
+                    st.session_state.player_hp -= 20; st.toast("Ouch!")
+                    
+                del st.session_state.bq; st.rerun()
+
+    # --- 🏆 HALL OF FAME ---
+    elif page == "🏆 Hall of Fame":
+        st.markdown("<h1 style='font-family:Bungee; text-align:center;'>🏆 HALL OF FAME</h1>", unsafe_allow_html=True)
+        data = c.execute("SELECT u.username, SUM(p.xp) as total FROM progress p JOIN users u ON p.email = u.email GROUP BY u.email ORDER BY total DESC").fetchall()
+        if data:
+            cols = st.columns(3)
+            with cols[1]: # Rank 1
+                st.markdown(f"<div style='text-align:center; padding:20px; border:2px solid gold; border-radius:15px;'>👑<br><b>{data[0][0]}</b><br>{data[0][1]} XP</div>", unsafe_allow_html=True)
+            st.write("---")
+            for i, row in enumerate(data[1:], 2):
+                st.write(f"#{i} {row[0]} — {row[1]} XP")
+
+    # --- 🛒 SHOP ---
+    elif page == "🛒 Shop":
+        st.markdown("<h1 style='font-family:Bungee;'>🛒 ITEM SHOP</h1>", unsafe_allow_html=True)
+        st.write(f"Your Balance: **{txp} XP**")
+        if st.button("Buy Shield (50 XP)"):
+            if txp >= 50:
+                c.execute("INSERT INTO progress VALUES (?,?,?)", (st.session_state.email, str(date.today()), -50))
+                c.execute("INSERT INTO inventory VALUES (?, '🛡️ Mystic Shield', 1) ON CONFLICT(email, item) DO UPDATE SET count=count+1", (st.session_state.email,))
+                conn.commit(); st.success("Purchased!"); st.rerun()
+
