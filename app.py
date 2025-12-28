@@ -5,7 +5,7 @@ import random
 import time
 
 # ==========================================
-# 🛠️ DATABASE & SETUP
+# 🛠️ DATABASE SETUP
 # ==========================================
 DB_NAME = 'english_guru_pro_v37.db'
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -15,16 +15,21 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, username TEXT, password TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS progress (email TEXT, date TEXT, xp INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS dictionary (email TEXT, word TEXT, meaning TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS inventory (email TEXT, item TEXT, count INTEGER, UNIQUE(email, item))''') 
     c.execute('''CREATE TABLE IF NOT EXISTS daily_tasks (email TEXT, task_date TEXT, completed INTEGER)''')
     conn.commit()
 
 init_db()
 
-# --- Assets ---
+# --- Assets & Data ---
 CORRECT_SND = "https://www.soundjay.com/buttons/sounds/button-3.mp3"
 WRONG_SND = "https://www.soundjay.com/buttons/sounds/button-10.mp3"
 BOSS_GIF = "https://i.pinimg.com/originals/8d/6d/21/8d6d214a1941d4f23b7b396b2d22b512.gif"
+
+TRAINING_DATA = [
+    {"q": "Antonym of 'ANCIENT'?", "o": ["Old", "Modern", "Heavy", "Small"], "a": "Modern"},
+    {"q": "Plural of 'Mouse'?", "o": ["Mouses", "Mice", "Micey", "Mice-s"], "a": "Mice"},
+    {"q": "I ____ a student.", "o": ["is", "am", "are", "be"], "a": "am"}
+]
 
 # --- Functions ---
 def trigger_effects(effect_type):
@@ -32,7 +37,6 @@ def trigger_effects(effect_type):
         st.markdown(f'<audio src="{CORRECT_SND}" autoplay></audio>', unsafe_allow_html=True)
     elif effect_type == "wrong":
         st.markdown(f'<audio src="{WRONG_SND}" autoplay></audio>', unsafe_allow_html=True)
-        # Screen Shake Animation
         st.markdown("<script>window.parent.document.querySelector('.stApp').animate([{transform:'translate(2px,2px)'},{transform:'translate(-2px,-2px)'}],{duration:100,iterations:3});</script>", unsafe_allow_html=True)
 
 # --- Session State ---
@@ -43,130 +47,106 @@ if 'logged_in' not in st.session_state:
 if 'boss_hp' not in st.session_state: st.session_state.boss_hp = 100
 if 'player_hp' not in st.session_state: st.session_state.player_hp = 100
 
-# --- UI Config ---
-st.set_page_config(page_title="English Guru Pro", page_icon="⚔️", layout="wide")
-st.markdown("""
+# --- User Stats ---
+txp = (c.execute("SELECT SUM(xp) FROM progress WHERE email=?", (st.session_state.email,)).fetchone()[0] or 0)
+user_level = 1 + (txp // 100)
+
+# --- UI Layout ---
+st.set_page_config(page_title="English Guru Pro v37", page_icon="🎓", layout="wide")
+
+st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bungee&display=swap');
-    .stApp { background: #0e1117; color: white; }
-    .boss-box { background: rgba(255,0,0,0.1); padding: 20px; border-radius: 20px; border: 2px solid red; text-align: center; }
-    .stat-card { background: #1e2130; padding: 15px; border-radius: 10px; border-left: 5px solid #00f2ff; }
+    .stApp {{ background: #0e1117; color: white; }}
+    .main-card {{ background: #1e2130; padding: 25px; border-radius: 20px; border: 1px solid #333; }}
+    .boss-box {{ background: rgba(255,0,0,0.1); padding: 20px; border-radius: 20px; border: 2px solid red; text-align: center; }}
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 🚀 MAIN APP
+# 🚀 APP NAVIGATION
 # ==========================================
-page = st.sidebar.radio("MENU", ["🏠 Dashboard", "🎓 Training", "⚔️ Boss Battle", "🏆 Hall of Fame"])
+page = st.sidebar.radio("MENU", ["🏠 Dashboard", "🎓 Training", "⚔️ Boss Battle", "🏆 Leaderboard"])
 
 if page == "🏠 Dashboard":
     st.markdown("<h1 style='font-family:Bungee;'>🛡️ COMMAND CENTER</h1>", unsafe_allow_html=True)
-    txp = (c.execute("SELECT SUM(xp) FROM progress WHERE email=?", (st.session_state.email,)).fetchone()[0] or 0)
-    col1, col2 = st.columns(2)
-    with col1: st.markdown(f"<div class='stat-card'><h3>XP: {txp}</h3></div>", unsafe_allow_html=True)
-    with col2: st.markdown(f"<div class='stat-card'><h3>LEVEL: {1+(txp//100)}</h3></div>", unsafe_allow_html=True)
-    st.info("📢 Click anywhere on the screen first to enable sounds! 🔊")
+    c1, c2 = st.columns(2)
+    c1.metric("CURRENT LEVEL", user_level)
+    c2.metric("TOTAL XP", txp)
+    st.info("📢 Pro Tip: Awaaz ke liye pehle screen par kahin click karein! 🔊")
 
 elif page == "🎓 Training":
-    st.title("🎓 Practice Mode")
-    q = {"q": "Opposite of 'FAST'?", "o": ["Quick", "Slow", "High", "Happy"], "a": "Slow"}
-    st.subheader(q['q'])
+    st.title("🎓 Daily Practice")
+    if 't_q' not in st.session_state: st.session_state.t_q = random.choice(TRAINING_DATA)
+    q = st.session_state.t_q
+    
+    st.markdown(f"<div class='main-card'><h3>{q['q']}</h3></div>", unsafe_allow_html=True)
     for opt in q['o']:
-        if st.button(f"✨ {opt}", use_container_width=True):
+        if st.button(opt, use_container_width=True):
             if opt == q['a']:
-                trigger_effects("correct"); st.success("Sahi Jawab!")
+                trigger_effects("correct"); st.success("Sahi Jawab! +10 XP")
                 c.execute("INSERT INTO progress VALUES (?,?,?)", (st.session_state.email, str(date.today()), 10))
                 conn.commit()
             else:
                 trigger_effects("wrong"); st.error("Galat Jawab!")
-            time.sleep(1); st.rerun()
+            del st.session_state.t_q; time.sleep(1); st.rerun()
 
 elif page == "⚔️ Boss Battle":
-        st.markdown("<h1 style='color:#ff4b4b; font-family:Bungee; text-align:center;'>👹 MONSTER ARENA</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:red; font-family:Bungee; text-align:center;'>👹 BOSS FIGHT</h1>", unsafe_allow_html=True)
+    
+    # Boss Config
+    boss_max_hp = 100 + (user_level * 25)
+    
+    # Safe Progress Bar Calculation (Error Fix)
+    p_val = max(0.0, min(st.session_state.player_hp / 100.0, 1.0))
+    b_val = max(0.0, min(st.session_state.boss_hp / boss_max_hp, 1.0))
+    
+    col_hp1, col_hp2 = st.columns(2)
+    col_hp1.write(f"🛡️ HERO: {int(p_val*100)}%")
+    col_hp1.progress(p_val)
+    col_hp2.write(f"👾 BOSS: {int(b_val*100)}%")
+    col_hp2.progress(b_val)
+
+    if st.session_state.boss_hp <= 0:
+        st.balloons(); st.success("VICTORY! Boss tabah ho gaya!")
+        if st.button("Agla Boss Bulao ⚔️"):
+            st.session_state.boss_hp = boss_max_hp + 50
+            st.session_state.player_hp = 100
+            st.rerun()
+    elif st.session_state.player_hp <= 0:
+        st.error("Khatam... Tata... Bye Bye... (You Died)")
+        if st.button("Zinda Ho Jao (Revive)"):
+            st.session_state.player_hp = 100; st.rerun()
+    else:
+        st.image(BOSS_GIF, width=250)
+        st.markdown("<div class='boss-box'><h3>Sahi jawab do attack karne ke liye!</h3></div>", unsafe_allow_html=True)
         
-        # --- HP BARS FIX (For Streamlit Cloud Error) ---
-        col_p, col_b = st.columns(2)
+        # Battle Question
+        q = TRAINING_DATA[0] # Training data se hi utha raha hoon simple rakhne ke liye
+        ans = st.radio("Choose Answer:", q['o'], horizontal=True)
         
-        with col_p:
-            # Player HP Progress (Safe 0.0 to 1.0)
-            p_val = max(0.0, min(st.session_state.player_hp / 100.0, 1.0))
-            st.write(f"🛡️ HERO: {int(p_val * 100)}%")
-            st.progress(p_val)
-            
-        with col_b:
-            # Boss HP Progress (Safe 0.0 to 1.0)
-            boss_max = 100 + (user_level * 25)
-            b_val = max(0.0, min(st.session_state.boss_hp / boss_max, 1.0))
-            st.write(f"👾 BOSS (Lvl {user_level}): {int(b_val * 100)}%")
-            st.progress(b_val)
-        
-        # --- BATTLE LOGIC ---
-        if st.session_state.boss_hp <= 0:
-            st.balloons()
-            st.success("✨ VICTORY! Boss Defeated!")
-            if st.button("Spawn Next Monster ⚔️"):
-                st.session_state.boss_hp = 100 + ((user_level + 1) * 25)
-                st.session_state.player_hp = 100
+        btn1, btn2 = st.columns(2)
+        with btn1:
+            if st.button("🗡️ Normal Attack"):
+                if ans == q['a']:
+                    st.session_state.boss_hp -= 25; trigger_effects("correct")
+                else:
+                    st.session_state.player_hp -= 15; trigger_effects("wrong")
                 st.rerun()
-                
-        elif st.session_state.player_hp <= 0:
-            st.error("💀 YOU DIED")
-            if st.button("Revive (Full HP)"):
-                st.session_state.player_hp = 100
-                st.rerun()
-        else:
-            # Question Card
-            if 'bq' not in st.session_state:
-                st.session_state.bq = random.choice(BOSS_POOL)
-            
-            st.markdown(f"<div class='main-card' style='text-align:center;'><h3>{st.session_state.bq['q']}</h3></div>", unsafe_allow_html=True)
-            ans = st.radio("Select Answer:", st.session_state.bq['o'], horizontal=True)
-            
-            st.write("---")
-            st.subheader("⚔️ CHOOSE YOUR ATTACK")
-            btn1, btn2, btn3 = st.columns(3)
-            
-            with btn1:
-                if st.button("🗡️ Quick Strike", use_container_width=True):
-                    if ans == st.session_state.bq['a']:
-                        st.session_state.boss_hp -= 30
-                        trigger_effects("correct")
+        with btn2:
+            if user_level >= 2:
+                if st.button("🔥 Super Attack"):
+                    if ans == q['a']:
+                        st.session_state.boss_hp -= 50; trigger_effects("correct")
                     else:
-                        st.session_state.player_hp -= 15
-                        trigger_effects("wrong")
-                    del st.session_state.bq; st.rerun()
+                        st.session_state.player_hp -= 30; trigger_effects("wrong")
+                    st.rerun()
+            else:
+                st.button("🔒 Lvl 2 Required", disabled=True)
 
-            with btn2:
-                if user_level >= 3:
-                    if st.button("🔥 Fire Blast", use_container_width=True):
-                        if ans == st.session_state.bq['a']:
-                            st.session_state.boss_hp -= 60
-                            trigger_effects("correct")
-                        else:
-                            st.session_state.player_hp -= 30
-                        del st.session_state.bq; st.rerun()
-                else:
-                    st.button("🔒 Lvl 3 Required", disabled=True, use_container_width=True)
-
-            with btn3:
-                if user_level >= 5:
-                    if st.button("⚡ Thunder Strike", use_container_width=True):
-                        if ans == st.session_state.bq['a']:
-                            st.session_state.boss_hp = 0
-                            st.balloons()
-                        else:
-                            st.session_state.player_hp = 5
-                        del st.session_state.bq; st.rerun()
-                else:
-                    st.button("🔒 Lvl 5 Required", disabled=True, use_container_width=True)
-        
-
-elif page == "🏆 Hall of Fame":
-    st.title("🏆 Leaderboard")
+elif page == "🏆 Leaderboard":
+    st.markdown("<h1 style='font-family:Bungee;'>🏆 TOP HEROES</h1>", unsafe_allow_html=True)
     data = c.execute("SELECT username, SUM(xp) as s FROM progress p JOIN users u ON p.email=u.email GROUP BY u.email ORDER BY s DESC").fetchall()
-    for row in data:
+    for i, row in enumerate(data, 1):
         av = f"https://api.dicebear.com/7.x/avataaars/svg?seed={row[0]}"
-        st.markdown(f"<img src='{av}' width='40'> **{row[0]}** — {row[1]} XP", unsafe_allow_html=True)
-        
-
-
+        st.markdown(f"**#{i}** <img src='{av}' width='30'> {row[0]} — {row[1]} XP", unsafe_allow_html=True)
