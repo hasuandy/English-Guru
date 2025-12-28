@@ -82,27 +82,23 @@ elif page == "🎓 Training":
             time.sleep(1); st.rerun()
 
 elif page == "⚔️ Boss Battle":
-    st.markdown("<h1 style='color:red; font-family:Bungee; text-align:center;'>👹 MONSTER ARENA</h1>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1,2,1])
-    with c2: st.image(BOSS_GIF, use_container_width=True)
-    
-    hp1, hp2 = st.columns(2)
-    hp1.metric("YOUR HP", f"{st.session_state.player_hp}%")
-    hp2.metric("BOSS HP", f"{st.session_state.boss_hp}%")
-
-    if st.session_state.boss_hp <= 0:
-        st.balloons(); st.success("VICTORY!"); st.button("Spawn New Boss", on_click=lambda: setattr(st.session_state, 'boss_hp', 100))
-    elif st.session_state.player_hp <= 0:
-        st.error("DEFEATED!"); st.button("Revive", on_click=lambda: setattr(st.session_state, 'player_hp', 100))
-    else:
-        st.markdown("<div class='boss-box'><h3>Synonym of 'SMART'?</h3></div>", unsafe_allow_html=True)
-        ans = st.radio("Weapon:", ["Dull", "Intelligent", "Lazy", "Angry"], horizontal=True)
-        if st.button("🔥 ATTACK"):
-            if ans == "Intelligent":
-                st.session_state.boss_hp -= 25; trigger_effects("correct")
-            else:
-                st.session_state.player_hp -= 20; trigger_effects("wrong")
-            time.sleep(1); st.rerun()
+        st.markdown("<h1 style='color:#ff4b4b; font-family:Bungee; text-align:center;'>👹 MONSTER ARENA</h1>", unsafe_allow_html=True)
+        col_p, col_b = st.columns(2)
+        
+        # Hero Progress
+        with col_p:
+            p_val = max(0.0, min(st.session_state.player_hp / 100.0, 1.0))
+            st.write(f"HERO: {int(p_val * 100)}%")
+            st.progress(p_val)
+            
+        # Boss Progress (Safe Version)
+        with col_b:
+            boss_max = 100 + (user_level * 25)
+            # HP ko limit mein rakhne ke liye formula
+            b_val = max(0.0, min(st.session_state.boss_hp / boss_max, 1.0))
+            st.write(f"BOSS: {int(b_val * 100)}%")
+            st.progress(b_val)
+        
 
 elif page == "🏆 Hall of Fame":
     st.title("🏆 Leaderboard")
@@ -111,3 +107,4 @@ elif page == "🏆 Hall of Fame":
         av = f"https://api.dicebear.com/7.x/avataaars/svg?seed={row[0]}"
         st.markdown(f"<img src='{av}' width='40'> **{row[0]}** — {row[1]} XP", unsafe_allow_html=True)
         
+
